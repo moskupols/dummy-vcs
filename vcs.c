@@ -39,6 +39,13 @@ return_t filename_for_revision(struct string* filename, int revision)
     return ret;
 }
 
+void vcs_free(struct vcs_state* vcs)
+{
+    string_free(&vcs->working_state);
+    string_free(&vcs->filename);
+    *vcs = VCS_NULL;
+}
+
 return_t vcs_open(struct vcs_state* vcs, const struct string* fname, int version)
 {
     return_t ret = SUCCESS;
@@ -74,10 +81,10 @@ return_t vcs_open(struct vcs_state* vcs, const struct string* fname, int version
     return ret;
 }
 
-void vcs_free(struct vcs_state* vcs)
+return_t vcs_print(const struct vcs_state* vcs, FILE* stream)
 {
-    string_free(&vcs->working_state);
-    string_free(&vcs->filename);
-    *vcs = VCS_NULL;
+    return fputs(vcs->working_state.data, stream) >= 0 
+        ? SUCCESS
+        : ERR_NO_SUCH_FILE;
 }
 

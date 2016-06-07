@@ -16,6 +16,8 @@ struct vcs_state
 int revision_for_filename(const struct string* filename);
 return_t filename_for_revision(struct string* filename, int revision);
 
+void vcs_free(struct vcs_state* vcs);
+
 return_t vcs_open(struct vcs_state* vcs, const struct string* fname, int version);
 return_t vcs_print(const struct vcs_state* vcs, FILE* stream);
 
@@ -27,6 +29,4 @@ return_t vcs_push(struct vcs_state* vcs);
 return_t vcs_pull(struct vcs_state* vcs, int version);
 return_t vcs_delete_version(struct vcs_state* vcs, int version);
 return_t vcs_rebase(struct vcs_state* vcs);
-
-void vcs_free(struct vcs_state* vcs);
 

@@ -43,7 +43,7 @@ int main()
 
     struct vcs_state vcs = VCS_NULL;
     vcs_open(&vcs, &s, 0);
-    printf("%s", vcs.working_state.data);
+    vcs_print(&vcs, stdout);
     vcs_free(&vcs);
 
     return 0;
