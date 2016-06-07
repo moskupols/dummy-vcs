@@ -150,12 +150,12 @@ static return_t delta_calc_recursive(
     struct delta_line *first = NULL, *mid_l = NULL, *mid_r = NULL, *last = NULL;
 
     return_t ret = delta_calc_recursive(&first, &mid_l,
-            substr_substr(&a, 0, comm_a.pos),
-            substr_substr(&b, 0, comm_b.pos));
-    if (ret == SUCCESS)
-        ret = delta_calc_recursive(&mid_r, &last,
             substr_substr(&a, comm_a.pos + comm_a.len, FICTIVE_LEN),
             substr_substr(&b, comm_b.pos + comm_b.len, FICTIVE_LEN));
+    if (ret == SUCCESS)
+        ret = delta_calc_recursive(&mid_r, &last,
+            substr_substr(&a, 0, comm_a.pos),
+            substr_substr(&b, 0, comm_b.pos));
 
     if (ret != SUCCESS)
     {
@@ -193,16 +193,11 @@ return_t delta_calc(struct delta* out,
         return SUCCESS;
     }
 
-    struct delta_line *first, *last;
+    struct delta_line *last;
 
-    return_t ret = delta_calc_recursive(
-            &first, &last,
+    return delta_calc_recursive(
+            &out->lines, &last,
             string_substr(a, 0, a->len), string_substr(b, 0, b->len));
-    if (ret != SUCCESS)
-        return ret;
-
-    out->lines = first;
-    return SUCCESS;
 }
 
 return_t delta_load(struct delta* out, FILE* stream)
