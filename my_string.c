@@ -8,16 +8,18 @@
 
 bool string_is_null(const struct string* s)
 {
-    return s->len == FICTIVE_LEN || s->data == NULL;
+    return s->data == NULL;
 }
 
 return_t string_alloc(struct string* out, size_t size)
 {
-    out->data = calloc(size + 1, sizeof(char));
-    if (out->data == NULL)
+    assert(out != NULL);
+
+    char* new_data = calloc(size + 1, sizeof(char));
+    if (new_data == NULL)
         return ERR_NO_MEMORY;
 
-    out->len = size;
+    string_assign_cstr_n(out, new_data, size);
     return SUCCESS;
 }
 
@@ -33,7 +35,6 @@ return_t string_copy_cstr_alloc(struct string* out, const char* cstr)
 
 return_t string_copy_cstr_n_alloc(struct string* out, const char* cstr, size_t n)
 {
-    assert(out != NULL);
     assert(cstr != NULL);
 
     return_t ret = string_alloc(out, n);
@@ -46,10 +47,20 @@ return_t string_copy_cstr_n_alloc(struct string* out, const char* cstr, size_t n
 
 void string_assign_cstr(struct string* out, char* cstr)
 {
+    assert(cstr != NULL);
+
+    string_assign_cstr_n(out, cstr, strlen(cstr));
+}
+
+void string_assign_cstr_n(struct string* out, char* cstr, size_t n)
+{
     assert(out != NULL);
     assert(cstr != NULL);
 
-    out->len = strlen(cstr);
+    if (!string_is_null(out))
+        string_free(out);
+
+    out->len = n;
     out->data = cstr;
 }
 

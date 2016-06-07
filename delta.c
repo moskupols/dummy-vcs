@@ -193,11 +193,20 @@ return_t delta_calc(struct delta* out,
         return SUCCESS;
     }
 
-    struct delta_line *last;
+    struct delta_line *first, *last;
 
-    return delta_calc_recursive(
-            &out->lines, &last,
+    return_t ret = delta_calc_recursive(
+            &first, &last,
             string_substr(a, 0, a->len), string_substr(b, 0, b->len));
+
+    if (ret != SUCCESS)
+        return ret;
+
+    if (out->lines)
+        free_delta_lines(out->lines);
+    out->lines = first;
+
+    return SUCCESS;
 }
 
 return_t delta_load(struct delta* out, FILE* stream)
@@ -248,6 +257,8 @@ return_t delta_load(struct delta* out, FILE* stream)
         next_line_ptr = &new_line->tail;
     }
 
+    if (out->lines)
+        delta_free(out);
     *out = res;
     return SUCCESS;
 }
@@ -273,7 +284,8 @@ return_t delta_save(const struct delta* delta, FILE* stream)
 
 void delta_free(struct delta* delta)
 {
-    delta->parent = -1;
     free_delta_lines(delta->lines);
+    /* delta->parent = -1; */
+    delta->lines = NULL;
 }
 

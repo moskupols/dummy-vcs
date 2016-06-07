@@ -11,7 +11,7 @@ struct string
     char* data;
 };
 #define FICTIVE_LEN ((size_t)-1)
-#define STRING_NULL ((struct string){FICTIVE_LEN, NULL})
+#define STRING_NULL ((struct string){0, NULL})
 
 struct substr
 {
@@ -28,6 +28,7 @@ return_t string_copy_cstr_n_alloc(struct string* out, const char* cstr, size_t n
 return_t string_copy_cstr_alloc(struct string* out, const char* cstr);
 
 void string_assign_cstr(struct string* inout, char* cstr);
+void string_assign_cstr_n(struct string* inout, char* cstr, size_t n);
 
 void string_free(struct string* string);
 
