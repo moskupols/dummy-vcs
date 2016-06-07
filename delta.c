@@ -181,6 +181,10 @@ return_t delta_calc(struct delta* out,
         const struct string* a, const struct string* b)
 {
     assert(out != NULL);
+    assert(a != NULL);
+    assert(b != NULL);
+    assert(a->data != NULL);
+    assert(b->data != NULL);
 
     struct delta_line *first, *last;
 

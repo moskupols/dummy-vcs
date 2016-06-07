@@ -8,7 +8,7 @@
 
 bool string_is_null(const struct string* s)
 {
-    return s->len == FICTIVE_LEN;
+    return s->len == FICTIVE_LEN || s->data == NULL;
 }
 
 return_t string_alloc(struct string* out, size_t size)
@@ -52,30 +52,39 @@ void string_assign_cstr(struct string* out, char* cstr)
 
 void string_free(struct string* string)
 {
-    assert(!string_is_null(string));
     free(string->data);
     *string = STRING_NULL;
 }
 
-static inline void check_substr(
-        size_t mylen, size_t pos, size_t* len)
+bool check_substr(
+        size_t mylen, size_t pos, size_t new_len, size_t* new_len_p)
 {
-    assert(pos <= mylen);
+    if (pos > mylen)
+        return false;
 
-    if (*len == FICTIVE_LEN)
-        *len = mylen - pos;
-    assert(pos + *len <= mylen);
+    if (new_len == FICTIVE_LEN)
+        new_len = mylen - pos;
+
+    if (pos + new_len > mylen)
+        return false;
+
+    if (new_len_p != NULL)
+        *new_len_p = new_len;
+
+    return true;
 }
 
 struct substr string_substr(const struct string* string, size_t pos, size_t len)
 {
-    check_substr(string->len, pos, &len);
+    bool valid_substr = check_substr(string->len, pos, len, &len);
+    assert(valid_substr);
     return (struct substr){string, pos, len};
 }
 
 return_t string_insert(struct string* into, size_t pos, const struct string* what)
 {
-    assert(pos <= into->len);
+    if (pos > into->len)
+        return ERR_INVALID_RANGE;
 
     return_t ret = my_realloc((void**)&into->data, into->len + what->len + 1);
     if (ret != SUCCESS)
@@ -94,7 +103,8 @@ return_t string_insert(struct string* into, size_t pos, const struct string* wha
 
 return_t string_erase(struct string* from, size_t pos, size_t len)
 {
-    check_substr(from->len, pos, &len);
+    if (!check_substr(from->len, pos, len, &len))
+        return ERR_INVALID_RANGE;
 
     char* erased = from->data + pos;
     size_t suffix_len = from->len - pos - len;
@@ -124,7 +134,8 @@ const char* substr_begin(const struct substr* substr)
 
 struct substr substr_substr(const struct substr* substr, size_t pos, size_t len)
 {
-    check_substr(substr->len, pos, &len);
+    bool valid_substr = check_substr(substr->len, pos, len, &len);
+    assert(valid_substr);
     return (struct substr){substr->str, substr->pos + pos, len};
 }
 

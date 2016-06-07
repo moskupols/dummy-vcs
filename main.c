@@ -15,17 +15,20 @@ int main()
     delta_load(&d, stdin);
 
     struct string t;
-    delta_apply_alloc(&t, &d, &s);
-    puts(t.data);
+    if (delta_apply_alloc(&t, &d, &s) == SUCCESS)
+        puts(t.data);
 
     delta_save(&d, stdout);
 
     delta_free(&d);
 
-    d.parent = 0;
-    delta_calc(&d, &s, &t);
-    delta_save(&d, stdout);
-    delta_free(&d);
+    if (!string_is_null(&t))
+    {
+        d.parent = 0;
+        delta_calc(&d, &s, &t);
+        delta_save(&d, stdout);
+        delta_free(&d);
+    }
 
     string_free(&s);
     string_free(&t);
