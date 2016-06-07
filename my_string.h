@@ -22,6 +22,9 @@ struct substr
 
 bool string_is_null(const struct string* s);
 
+return_t string_reserve(struct string* s, size_t size);
+return_t string_shrink(struct string* s);
+
 return_t string_alloc(struct string* out, size_t size);
 return_t string_copy_alloc(struct string* out, const struct string* source);
 return_t string_copy_cstr_n_alloc(struct string* out, const char* cstr, size_t n);
@@ -38,9 +41,6 @@ return_t string_insert(struct string* into, size_t pos, const struct string* wha
 return_t string_erase(struct string* from, size_t pos, size_t len);
 
 int string_cmp(const struct string* a, const struct string* b);
-
-return_t string_shrink(struct string* s);
-
 
 
 const char* substr_begin(const struct substr* substr);

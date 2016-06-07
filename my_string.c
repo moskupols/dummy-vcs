@@ -11,6 +11,32 @@ bool string_is_null(const struct string* s)
     return s->data == NULL;
 }
 
+return_t string_reserve(struct string* s, size_t size)
+{
+    if (string_is_null(s))
+        return string_alloc(s, size);
+
+    if (s->len >= size)
+        return SUCCESS;
+
+    return_t ret = my_realloc(&s->data, size + 1);
+    if (ret == SUCCESS)
+    {
+        memset(s->data + s->len, 0, size - s->len + 1);
+        s->len = size;
+    }
+    return ret;
+}
+
+return_t string_shrink(struct string* s)
+{
+    assert(s != NULL);
+    assert(s->data != NULL);
+
+    s->len = strlen(s->data);
+    return my_realloc(&s->data, s->len + 1);
+}
+
 return_t string_alloc(struct string* out, size_t size)
 {
     assert(out != NULL);
@@ -100,17 +126,17 @@ return_t string_insert(struct string* into, size_t pos, const struct string* wha
     if (pos > into->len)
         return ERR_INVALID_RANGE;
 
-    return_t ret = my_realloc((void**)&into->data, into->len + what->len + 1);
+    size_t old_len = into->len;
+
+    return_t ret = string_reserve(into, into->len + what->len);
     if (ret != SUCCESS)
         return ret;
 
-    size_t suffix_len = into->len - pos;
+    size_t suffix_len = old_len - pos;
     char* suffix = into->data + pos;
 
     memmove(suffix + what->len, suffix, suffix_len);
     memcpy(suffix, what->data, what->len);
-    into->len += what->len;
-    into->data[into->len] = '\0';
 
     return SUCCESS;
 }
@@ -139,14 +165,6 @@ int string_cmp(const struct string* a, const struct string* b)
     return ret;
 }
 
-return_t string_shrink(struct string* s)
-{
-    assert(s != NULL);
-    assert(s->data != NULL);
-
-    s->len = strlen(s->data);
-    return my_realloc(&s->data, s->len + 1);
-}
 
 
 
