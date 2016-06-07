@@ -23,23 +23,21 @@ return_t string_alloc(struct string* out, size_t size)
 
 return_t string_copy_alloc(struct string* out, const struct string* source)
 {
-    return_t ret = string_alloc(out, source->len);
-    if (ret != SUCCESS)
-        return ret;
-
-    strncpy(out->data, source->data, out->len);
-    return SUCCESS;
+    return string_copy_cstr_n_alloc(out, source->data, source->len);
 }
 
 return_t string_copy_cstr_alloc(struct string* out, const char* cstr)
 {
-    size_t len = strlen(cstr);
+    return string_copy_cstr_n_alloc(out, cstr, strlen(cstr));
+}
 
-    return_t ret = string_alloc(out, len);
+return_t string_copy_cstr_n_alloc(struct string* out, const char* cstr, size_t n)
+{
+    return_t ret = string_alloc(out, n);
     if (ret != SUCCESS)
         return ret;
 
-    strncpy(out->data, cstr, len);
+    strncpy(out->data, cstr, n);
     return SUCCESS;
 }
 
@@ -60,19 +58,19 @@ void string_free(struct string* string)
 }
 
 static inline void check_substr(
-        const struct string* string, size_t pos, size_t* len)
+        size_t mylen, size_t pos, size_t* len)
 {
-    assert(pos <= string->len);
+    assert(pos <= mylen);
 
     if (*len == FICTIVE_LEN)
-        *len = string->len - pos;
-    assert(pos + *len <= string->len);
+        *len = mylen - pos;
+    assert(pos + *len <= mylen);
 }
 
-struct string string_substr(const struct string* string, size_t pos, size_t len)
+struct substr string_substr(const struct string* string, size_t pos, size_t len)
 {
-    check_substr(string, pos, &len);
-    return (struct string){len, string->data + pos};
+    check_substr(string->len, pos, &len);
+    return (struct substr){string, pos, len};
 }
 
 return_t string_insert(struct string* into, size_t pos, const struct string* what)
@@ -96,7 +94,7 @@ return_t string_insert(struct string* into, size_t pos, const struct string* wha
 
 return_t string_erase(struct string* from, size_t pos, size_t len)
 {
-    check_substr(from, pos, &len);
+    check_substr(from->len, pos, &len);
 
     char* erased = from->data + pos;
     size_t suffix_len = from->len - pos - len;
@@ -115,5 +113,23 @@ return_t string_shrink(struct string* s)
 
     s->len = strlen(s->data);
     return my_realloc(&s->data, s->len + 1);
+}
+
+
+
+const char* substr_begin(const struct substr* substr)
+{
+    return substr->str->data + substr->pos;
+}
+
+struct substr substr_substr(const struct substr* substr, size_t pos, size_t len)
+{
+    check_substr(substr->len, pos, &len);
+    return (struct substr){substr->str, substr->pos + pos, len};
+}
+
+return_t substr_to_string_alloc(struct string* out, const struct substr* sub)
+{
+    return string_copy_cstr_n_alloc(out, substr_begin(sub), sub->len);
 }
 
