@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <assert.h>
 
 #include "parse.h"
 
@@ -86,5 +87,32 @@ return_t vcs_print(const struct vcs_state* vcs, FILE* stream)
     return fputs(vcs->working_state.data, stream) >= 0 
         ? SUCCESS
         : ERR_NO_SUCH_FILE;
+}
+
+return_t vcs_edit(struct vcs_state* vcs,
+        size_t i, size_t j, const struct string* data)
+{
+    assert(vcs != NULL);
+    assert(data != NULL);
+    assert(!string_is_null(data));
+
+    size_t len = j - i + 1;
+    if (i > j || !check_substr(vcs->working_state.len, i, len, NULL))
+        return ERR_INVALID_RANGE;
+
+    return_t ret = SUCCESS;
+
+    if (data->len > len)
+        ret = string_reserve(&vcs->working_state,
+                vcs->working_state.len + data->len - len);
+
+    if (ret == SUCCESS)
+    {
+        ret = string_erase(&vcs->working_state, i, len);
+        assert(ret == SUCCESS);
+        ret = string_insert(&vcs->working_state, i, data);
+        assert(ret == SUCCESS);
+    }
+    return ret;
 }
 

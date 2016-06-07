@@ -35,6 +35,9 @@ return_t read_until(struct string* out, FILE* stream, int stop_char)
 
     buf[used] = '\0';
     string_assign_cstr(out, buf);
-    return SUCCESS;
+    return_t ret = string_shrink(out);
+    if (ret != SUCCESS)
+        free(buf);
+    return ret;
 }
 

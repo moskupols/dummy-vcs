@@ -83,8 +83,8 @@ void string_assign_cstr_n(struct string* out, char* cstr, size_t n)
     assert(out != NULL);
     assert(cstr != NULL);
 
-    if (!string_is_null(out))
-        string_free(out);
+    /* if (!string_is_null(out)) */
+        /* string_free(out); */
 
     out->len = n;
     out->data = cstr;

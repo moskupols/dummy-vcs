@@ -35,6 +35,8 @@ void string_assign_cstr_n(struct string* inout, char* cstr, size_t n);
 
 void string_free(struct string* string);
 
+bool check_substr(size_t old_len, size_t pos, size_t new_len, size_t* new_len_p);
+
 struct substr string_substr(const struct string* string, size_t pos, size_t len);
 
 return_t string_insert(struct string* into, size_t pos, const struct string* what);
