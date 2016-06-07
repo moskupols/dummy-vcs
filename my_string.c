@@ -15,7 +15,7 @@ return_t string_alloc(struct string* out, size_t size)
 {
     out->data = calloc(size + 1, sizeof(char));
     if (out->data == NULL)
-        return ERR_BAD_ALLOC;
+        return ERR_NO_MEMORY;
 
     out->len = size;
     return SUCCESS;

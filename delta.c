@@ -205,7 +205,7 @@ return_t delta_load(struct delta* out, FILE* stream)
         if (new_line == NULL)
         {
             delta_free(&res);
-            return ERR_BAD_ALLOC;
+            return ERR_NO_MEMORY;
         }
 
         new_line->type = type;

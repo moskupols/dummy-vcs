@@ -14,7 +14,7 @@ return_t read_line(struct string* out, FILE* stream)
 
     char* buf = malloc(capacity);
     if (buf == NULL)
-        return ERR_BAD_ALLOC;
+        return ERR_NO_MEMORY;
 
     char c = fgetc(stream);
     while (!feof(stream) && !ferror(stream) && c != '\n')

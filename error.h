@@ -3,7 +3,7 @@
 typedef enum
 {
     SUCCESS,
-    ERR_BAD_ALLOC,
+    ERR_NO_MEMORY,
     ERR_INVALID_DELTA
 } return_t;
 

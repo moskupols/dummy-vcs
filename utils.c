@@ -10,7 +10,7 @@ return_t _my_realloc(void** inout, size_t new_size)
     if (new_ptr == NULL)
     {
         assert(errno == ENOMEM);
-        return ERR_BAD_ALLOC;
+        return ERR_NO_MEMORY;
     }
     *inout = new_ptr;
     return SUCCESS;
