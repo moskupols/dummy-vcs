@@ -3,6 +3,7 @@
 #include "my_string.h"
 #include "parse.h"
 #include "delta.h"
+#include "vcs.h"
 
 int main()
 {
@@ -30,6 +31,15 @@ int main()
     delta_free(&d);
     string_free(&s);
     string_free(&t);
+
+
+    string_copy_cstr_alloc(&s, "a.5");
+    printf("%d\n", revision_for_filename(&s));
+
+    filename_for_revision(&s, 8);
+    printf("%s\n", s.data);
+
+    string_free(&s);
 
     return 0;
 }
