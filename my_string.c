@@ -33,6 +33,9 @@ return_t string_copy_cstr_alloc(struct string* out, const char* cstr)
 
 return_t string_copy_cstr_n_alloc(struct string* out, const char* cstr, size_t n)
 {
+    assert(out != NULL);
+    assert(cstr != NULL);
+
     return_t ret = string_alloc(out, n);
     if (ret != SUCCESS)
         return ret;
