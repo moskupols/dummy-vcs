@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "utils.h"
+
 return_t read_line(struct string* out, FILE* stream)
 {
     assert(out != NULL);
@@ -10,7 +12,7 @@ return_t read_line(struct string* out, FILE* stream)
     size_t used = 0;
     size_t capacity = 8;
 
-    char* buf = malloc(capacity, sizeof(char));
+    char* buf = malloc(capacity);
     if (buf == NULL)
         return ERR_BAD_ALLOC;
 
@@ -21,13 +23,13 @@ return_t read_line(struct string* out, FILE* stream)
         if (used >= capacity)
         {
             capacity *= 2;
-            char* new_buf = realloc(buf, capacity);
-            if (new_buf == NULL)
+
+            return_t ret = my_realloc(&buf, capacity);
+            if (ret != SUCCESS)
             {
                 free(buf);
-                return ERR_BAD_ALLOC;
+                return ret;
             }
-            buf = new_buf;
         }
     }
 

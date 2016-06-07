@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "utils.h"
+
 bool string_is_null(const struct string* s)
 {
     return s->len == FICTIVE_LEN;
@@ -43,7 +45,7 @@ return_t string_copy_cstr_alloc(struct string* out, const char* cstr)
     return SUCCESS;
 }
 
-void string_assign_cstr(struct string* out, const char* cstr)
+void string_assign_cstr(struct string* out, char* cstr)
 {
     assert(out != NULL);
     assert(cstr != NULL);
@@ -59,7 +61,7 @@ void string_free(struct string* string)
     *string = STRING_NULL;
 }
 
-inline void check_substr(
+static inline void check_substr(
         const struct string* string, size_t pos, size_t* len)
 {
     assert(pos <= string->len);
@@ -69,24 +71,31 @@ inline void check_substr(
     assert(pos + *len <= string->len);
 }
 
-substring string_substr(const struct string* string, size_t pos, size_t len)
+struct string string_substr(const struct string* string, size_t pos, size_t len)
 {
     check_substr(string, pos, &len);
-    return (substring){len, string->data + pos};
+    return (struct string){len, string->data + pos};
 }
 
-void string_insert(struct string* into, size_t pos, const struct string* what)
+return_t string_insert(struct string* into, size_t pos, const struct string* what)
 {
     assert(pos <= into->len);
+
+    return_t ret = my_realloc((void**)&into->data, into->len + what->len + 1);
+    if (ret != SUCCESS)
+        return ret;
+
     size_t suffix_len = into->len - pos;
     char* suffix = into->data + pos;
 
     memmove(suffix + what->len, suffix, suffix_len);
     memcpy(suffix, what->data, what->len);
     into->len += what->len;
+
+    return SUCCESS;
 }
 
-void string_erase(struct string* from, size_t pos, size_t len)
+return_t string_erase(struct string* from, size_t pos, size_t len)
 {
     check_substr(from, pos, &len);
 
@@ -96,5 +105,16 @@ void string_erase(struct string* from, size_t pos, size_t len)
     memmove(erased, erased + len, suffix_len);
     from->len -= len;
     from->data[from->len] = '\0';
+
+    return SUCCESS;
+}
+
+return_t string_shrink(struct string* s)
+{
+    assert(s != NULL);
+    assert(s->data != NULL);
+
+    s->len = strlen(s->data);
+    return my_realloc(&s->data, s->len + 1);
 }
 

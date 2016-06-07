@@ -37,6 +37,7 @@ return_t delta_load(struct delta* out, FILE* stream);
 
 void delta_free(struct delta* delta);
 
+return_t delta_apply(struct string* text, const struct delta *delta);
 return_t delta_apply_alloc(
         struct string* out, const struct delta* delta, const struct string* source);
 
