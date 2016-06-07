@@ -13,8 +13,6 @@ bool string_is_null(const struct string* s)
 
 return_t string_alloc(struct string* out, size_t size)
 {
-    assert(string_is_null(out));
-
     out->data = calloc(size + 1, sizeof(char));
     if (out->data == NULL)
         return ERR_BAD_ALLOC;
@@ -91,6 +89,7 @@ return_t string_insert(struct string* into, size_t pos, const struct string* wha
     memmove(suffix + what->len, suffix, suffix_len);
     memcpy(suffix, what->data, what->len);
     into->len += what->len;
+    into->data[into->len] = '\0';
 
     return SUCCESS;
 }

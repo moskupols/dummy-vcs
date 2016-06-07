@@ -13,7 +13,7 @@ main : $(OBJECTS)
 	$(CC) $(CFLAGS) $^ -o $@
 
 debug : $(TARGET)
-	gdb -q $<
+	gdb -q -tui $<
 
 gdb : debug
 

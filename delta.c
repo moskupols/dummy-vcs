@@ -6,6 +6,10 @@
 
 #include "my_string.h"
 
+static void delta_line_free(struct delta_line* line)
+{
+    string_free(&line->text);
+}
 
 return_t delta_apply(struct string* text, const struct delta *delta)
 {
@@ -101,7 +105,7 @@ return_t delta_load(struct delta* out, FILE* stream)
     struct delta_line** next_line_ptr = &res.lines;
 
     char type;
-    while (fscanf(stream, "%1s", &type) > 0) // TODO: check retval
+    while (fscanf(stream, "\n%c", &type) > 0) // TODO: check retval
     {
         if (type != DELTA_ADD && type != DELTA_ERASE)
         {
@@ -122,7 +126,6 @@ return_t delta_load(struct delta* out, FILE* stream)
             char* text;
             fscanf(stream, "%zu %ms", &new_line->pos, &text); // TODO proper reading
             string_assign_cstr(&new_line->text, text);
-            free(text);
         }
         else
         {
@@ -141,7 +144,7 @@ return_t delta_save(const struct delta* delta, FILE* stream)
 {
     assert(delta->parent != -1);
 
-    fprintf(stream, "%d", delta->parent);
+    fprintf(stream, "%d\n", delta->parent);
     for (const struct delta_line* line = delta->lines;
             line != NULL;
             line = line->tail)
@@ -165,6 +168,7 @@ void delta_free(struct delta* delta)
     {
         struct delta_line* old_line = next_line;
         next_line = next_line->tail;
+        delta_line_free(old_line);
         free(old_line);
     }
 }
