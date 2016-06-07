@@ -12,12 +12,13 @@ int main()
 
     struct vcs_state vcs = VCS_NULL;
     vcs_open(&vcs, &s, 0);
-    vcs_print(&vcs, stdout);
 
     string_assign_cstr(&s, "cool!");
     vcs_edit(&vcs, 3, 3, &s);
 
     vcs_print(&vcs, stdout);
+
+    vcs_push(&vcs);
 
     vcs_free(&vcs);
 
