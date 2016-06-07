@@ -186,6 +186,12 @@ return_t delta_calc(struct delta* out,
     assert(a->data != NULL);
     assert(b->data != NULL);
 
+    if (string_cmp(a, b) == 0)
+    {
+        out->lines = NULL;
+        return SUCCESS;
+    }
+
     struct delta_line *first, *last;
 
     return_t ret = delta_calc_recursive(

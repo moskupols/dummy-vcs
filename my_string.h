@@ -36,6 +36,8 @@ struct substr string_substr(const struct string* string, size_t pos, size_t len)
 return_t string_insert(struct string* into, size_t pos, const struct string* what);
 return_t string_erase(struct string* from, size_t pos, size_t len);
 
+int string_cmp(const struct string* a, const struct string* b);
+
 return_t string_shrink(struct string* s);
 
 

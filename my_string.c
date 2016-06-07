@@ -116,6 +116,15 @@ return_t string_erase(struct string* from, size_t pos, size_t len)
     return SUCCESS;
 }
 
+int string_cmp(const struct string* a, const struct string* b)
+{
+    size_t s = min(a->len, b->len);
+    int ret = strncmp(a->data, b->data, s);
+    if (!ret)
+        ret = a->data[s] - b->data[s];
+    return ret;
+}
+
 return_t string_shrink(struct string* s)
 {
     assert(s != NULL);
