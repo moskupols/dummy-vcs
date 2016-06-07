@@ -5,20 +5,28 @@
 #include "my_string.h"
 #include "error.h"
 
+struct vcs_state
+{
+    struct string working_state;
+    struct string filename;
+    int version;
+};
+#define VCS_NULL ((struct vcs_state){STRING_NULL, STRING_NULL, -1})
+
 int revision_for_filename(const struct string* filename);
 return_t filename_for_revision(struct string* filename, int revision);
 
-return_t vcs_open(const struct string* fname, int version);
-return_t vcs_print(FILE* stream);
+return_t vcs_open(struct vcs_state* vcs, const struct string* fname, int version);
+return_t vcs_print(const struct vcs_state* vcs, FILE* stream);
 
-return_t vcs_edit(size_t i, size_t j, const struct string* data);
-return_t vcs_add(size_t i, const struct string* data);
-return_t vcs_remove(size_t i, size_t j);
+return_t vcs_edit(struct vcs_state* vcs, size_t i, size_t j, const struct string* data);
+return_t vcs_add(struct vcs_state* vcs, size_t i, const struct string* data);
+return_t vcs_remove(struct vcs_state* vcs, size_t i, size_t j);
 
-return_t vcs_push();
-return_t vcs_pull(int version);
-return_t vcs_delete_version(int version);
-return_t vcs_rebase();
+return_t vcs_push(struct vcs_state* vcs);
+return_t vcs_pull(struct vcs_state* vcs, int version);
+return_t vcs_delete_version(struct vcs_state* vcs, int version);
+return_t vcs_rebase(struct vcs_state* vcs);
 
-int vcs_get_current_version();
+void vcs_free(struct vcs_state* vcs);
 

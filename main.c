@@ -39,7 +39,12 @@ int main()
     filename_for_revision(&s, 8);
     printf("%s\n", s.data);
 
-    string_free(&s);
+    string_assign_cstr(&s, "main.c");
+
+    struct vcs_state vcs = VCS_NULL;
+    vcs_open(&vcs, &s, 0);
+    printf("%s", vcs.working_state.data);
+    vcs_free(&vcs);
 
     return 0;
 }

@@ -5,7 +5,7 @@
 
 #include "utils.h"
 
-return_t read_line(struct string* out, FILE* stream)
+return_t read_until(struct string* out, FILE* stream, int stop_char)
 {
     assert(out != NULL);
 
@@ -17,7 +17,7 @@ return_t read_line(struct string* out, FILE* stream)
         return ERR_NO_MEMORY;
 
     char c;
-    while ((c = fgetc(stream)) != '\n' && !feof(stream) && !ferror(stream))
+    while ((c = fgetc(stream)) != stop_char && !feof(stream) && !ferror(stream))
     {
         buf[used++] = c;
         if (used >= capacity)
