@@ -16,8 +16,8 @@ return_t read_line(struct string* out, FILE* stream)
     if (buf == NULL)
         return ERR_NO_MEMORY;
 
-    char c = fgetc(stream);
-    while (!feof(stream) && !ferror(stream) && c != '\n')
+    char c;
+    while ((c = fgetc(stream)) != '\n' && !feof(stream) && !ferror(stream))
     {
         buf[used++] = c;
         if (used >= capacity)

@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "my_string.h"
+#include "parse.h"
 #include "utils.h"
 
 static void delta_line_free(struct delta_line* line)
@@ -234,9 +235,14 @@ return_t delta_load(struct delta* out, FILE* stream)
         new_line->type = type;
         if (type == DELTA_ADD)
         {
-            char* text;
-            fscanf(stream, "%zu %ms", &new_line->pos, &text); // TODO proper reading
-            string_assign_cstr(&new_line->text, text);
+            fscanf(stream, "%zu ", &new_line->pos);
+            return_t ret = read_line(&new_line->text, stream);
+            if (ret != SUCCESS)
+            {
+                free(new_line);
+                delta_free(&res);
+                return ret;
+            }
         }
         else
         {
