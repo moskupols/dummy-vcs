@@ -54,6 +54,7 @@ struct string string_copy_cstr_n_alloc(const char* cstr, size_t n)
 
     struct string ret = string_alloc(n);
     strncpy(ret.data, cstr, n);
+    ret.len = n;
     return ret;
 }
 
