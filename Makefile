@@ -18,7 +18,7 @@ debug : $(TARGET)
 gdb : debug
 
 clean :
-	for i in $(wildcard *.o main Makefile.*); do rm $$i; done
+	for i in $(wildcard *.o main a.*); do rm $$i; done
 
 .PHONY : debug gdb clean
 

@@ -105,8 +105,8 @@ return_t vcs_edit(struct vcs_state* vcs,
     assert(vcs != NULL);
     assert(data != NULL);
 
-    size_t len = j - i + 1;
-    if (i > j || !check_substr(strlen(vcs->working_state), i, len, NULL))
+    size_t len = j - i;
+    if (i >= j || !check_substr(strlen(vcs->working_state), i, len, NULL))
         return ERR_INVALID_RANGE;
 
     return_t ret = string_erase(&vcs->working_state, i, len);
@@ -128,7 +128,7 @@ return_t vcs_remove(struct vcs_state* vcs, size_t i, size_t j)
 {
     assert(vcs != NULL);
 
-    return string_erase(&vcs->working_state, i, j - i + 1);
+    return string_erase(&vcs->working_state, i, j - i);
 }
 
 static bool file_exists(const char * path)

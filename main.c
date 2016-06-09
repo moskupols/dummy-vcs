@@ -1,22 +1,59 @@
 #include <stdio.h>
+#include <assert.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "my_string.h"
 #include "parse.h"
 #include "delta.h"
 #include "vcs.h"
 
+void sample_test()
+{
+    const char* init_text = "ABCDEFGH1234567890";
+
+    system("rm a.*");
+
+    FILE* f = fopen("a.txt", "w");
+    fputs(init_text, f);
+    fclose(f);
+
+    f = fopen("a.txt", "r");
+
+    struct vcs_state vcs = VCS_NULL;
+
+    assert(vcs_open(&vcs, "a.txt", 0) == SUCCESS);
+    fclose(f);
+    assert(strcmp(vcs.working_state, init_text) == 0);
+
+    assert(vcs_edit(&vcs, 2, 3, "O") == SUCCESS);
+
+    assert(vcs_remove(&vcs, 1, 10) == SUCCESS);
+    assert(strcmp(vcs.working_state, "A34567890") == 0);
+
+    assert(vcs_add(&vcs, 19, "aksjhda") == ERR_INVALID_RANGE);
+    assert(vcs_add(&vcs, 10, "uhsdjs") == ERR_INVALID_RANGE);
+
+    assert(vcs_add(&vcs, 9, "XYZ") == SUCCESS);
+    assert(strcmp(vcs.working_state, "A34567890XYZ") == 0);
+
+    assert(vcs_push(&vcs) == SUCCESS);
+    assert(vcs.version == 1);
+
+    assert(vcs_edit(&vcs, 0, 2, "IBKS") == SUCCESS);
+    assert(strcmp(vcs.working_state, "IBKS4567890XYZ") == 0);
+
+    /* assert(vcs_pull(&vcs, 2) == ERR_INVALID_VERSION); */
+    assert(vcs_push(&vcs) == SUCCESS);
+    assert(vcs.version == 2);
+
+    /* assert(vcs_pull(&vcs, 1) == SUCCESS); */
+    vcs_free(&vcs);
+}
+
 int main()
 {
-    struct vcs_state vcs = VCS_NULL;
-    vcs_open(&vcs, "Makefile", 0);
-
-    vcs_edit(&vcs, 3, 3, "cool!");
-
-    vcs_print(&vcs, stdout);
-
-    vcs_push(&vcs);
-
-    vcs_free(&vcs);
+    sample_test();
 
     return 0;
 }
