@@ -5,7 +5,7 @@
 
 #include "utils.h"
 
-return_t read_until(struct string* out, FILE* stream, int stop_char)
+return_t read_until(char** out, FILE* stream, int stop_char)
 {
     assert(out != NULL);
 
@@ -26,7 +26,7 @@ return_t read_until(struct string* out, FILE* stream, int stop_char)
     }
 
     buf[used] = '\0';
-    *out = string_from_cstr(buf);
+    *out = buf;
     string_shrink(out);
     return SUCCESS;
 }

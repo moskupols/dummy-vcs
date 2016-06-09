@@ -10,7 +10,7 @@
 
 static void delta_line_free(struct delta_line* line)
 {
-    string_free(&line->text);
+    free(line->text);
 }
 
 static void free_delta_lines(struct delta_line* head)
@@ -22,7 +22,7 @@ static void free_delta_lines(struct delta_line* head)
     free(head);
 }
 
-return_t delta_apply(struct string* text, const struct delta *delta)
+return_t delta_apply(char** text, const struct delta *delta)
 {
     assert(text != NULL);
     assert(delta != NULL);
@@ -35,20 +35,19 @@ return_t delta_apply(struct string* text, const struct delta *delta)
     {
         assert(line->type == DELTA_ADD || line->type == DELTA_ERASE);
         if (line->type == DELTA_ADD)
-            ret = string_insert(text, line->pos, &line->text);
+            ret = string_insert(text, line->pos, line->text);
         else
             ret = string_erase(text, line->pos, line->erase_len);
-        assert(text->data[text->len] == '\0');
+        assert((*text)[strlen(*text)] == '\0');
     }
 
     return ret;
 }
 
-return_t delta_apply_alloc(struct string* out,
-        const struct delta* delta, const struct string* source)
+return_t delta_apply_alloc(char** out,
+        const struct delta* delta, const char* source)
 {
     assert(source != NULL);
-    assert(!string_is_null(source));
     assert(out != NULL);
 
     *out = string_copy_alloc(source);
@@ -56,7 +55,7 @@ return_t delta_apply_alloc(struct string* out,
 
     if (err != SUCCESS)
     {
-        string_free(out);
+        free(out);
         return err;
     }
 
@@ -158,23 +157,21 @@ static void delta_calc_recursive(
     *out_last = last;
 }
 
-struct delta delta_calc(const struct string* a, const struct string* b)
+struct delta delta_calc(const char* a, const char* b)
 {
     assert(a != NULL);
     assert(b != NULL);
-    assert(a->data != NULL);
-    assert(b->data != NULL);
 
     struct delta ret = DELTA_NULL;
 
-    if (string_cmp(a, b) == 0)
+    if (strcmp(a, b) == 0)
         return ret;
 
     struct delta_line *last;
 
     delta_calc_recursive(
         &ret.lines, &last,
-        string_substr(a, 0, a->len), string_substr(b, 0, b->len));
+        string_substr(a, 0, FICTIVE_LEN), string_substr(b, 0, FICTIVE_LEN));
 
     return ret;
 }
@@ -233,7 +230,7 @@ return_t delta_save(const struct delta* delta, FILE* stream)
     {
         assert(line->type == DELTA_ADD || line->type == DELTA_ERASE);
         if (line->type == DELTA_ADD)
-            fprintf(stream, "+ %zu %s\n", line->pos, line->text.data);
+            fprintf(stream, "+ %zu %s\n", line->pos, line->text);
         else
             fprintf(stream, "- %zu %zu\n", line->pos, line->erase_len);
     }
