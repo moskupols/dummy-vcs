@@ -6,94 +6,42 @@
 
 #include "utils.h"
 
-bool string_is_null(const struct string* s)
+void string_reserve(char** s, size_t new_len)
 {
-    return s->data == NULL;
-}
-
-return_t string_reserve(struct string* s, size_t size)
-{
-    if (string_is_null(s))
-        return string_alloc(s, size);
-
-    if (s->len >= size)
-        return SUCCESS;
-
-    return_t ret = my_realloc(&s->data, size + 1);
-    if (ret == SUCCESS)
+    if (s == NULL)
     {
-        memset(s->data + s->len, 0, size - s->len + 1);
-        s->len = size;
+        *s = checked_calloc(new_len + 1, sizeof(char));
+        return;
     }
-    return ret;
+
+    size_t old_len = strlen(*s);
+    if (old_len >= new_len)
+        return;
+
+    checked_realloc((void**)s, new_len + 1);
+    memset(*s + old_len, 0, new_len - old_len + 1);
 }
 
-return_t string_shrink(struct string* s)
+void string_shrink(char** s)
 {
     assert(s != NULL);
-    assert(s->data != NULL);
 
-    s->len = strlen(s->data);
-    return my_realloc(&s->data, s->len + 1);
+    checked_realloc((void**)s, strlen(*s) + 1);
 }
 
-return_t string_alloc(struct string* out, size_t size)
+char* string_copy_alloc(const char* source)
 {
-    assert(out != NULL);
-
-    char* new_data = calloc(size + 1, sizeof(char));
-    if (new_data == NULL)
-        return ERR_NO_MEMORY;
-
-    string_assign_cstr_n(out, new_data, size);
-    return SUCCESS;
+    return string_copy_n_alloc(source, strlen(source));
 }
 
-return_t string_copy_alloc(struct string* out, const struct string* source)
+char* string_copy_n_alloc(const char* source, size_t n)
 {
-    return string_copy_cstr_n_alloc(out, source->data, source->len);
-}
+    assert(source != NULL);
 
-return_t string_copy_cstr_alloc(struct string* out, const char* cstr)
-{
-    return string_copy_cstr_n_alloc(out, cstr, strlen(cstr));
-}
-
-return_t string_copy_cstr_n_alloc(struct string* out, const char* cstr, size_t n)
-{
-    assert(cstr != NULL);
-
-    return_t ret = string_alloc(out, n);
-    if (ret != SUCCESS)
-        return ret;
-
-    strncpy(out->data, cstr, n);
-    return SUCCESS;
-}
-
-void string_assign_cstr(struct string* out, char* cstr)
-{
-    assert(cstr != NULL);
-
-    string_assign_cstr_n(out, cstr, strlen(cstr));
-}
-
-void string_assign_cstr_n(struct string* out, char* cstr, size_t n)
-{
-    assert(out != NULL);
-    assert(cstr != NULL);
-
-    /* if (!string_is_null(out)) */
-        /* string_free(out); */
-
-    out->len = n;
-    out->data = cstr;
-}
-
-void string_free(struct string* string)
-{
-    free(string->data);
-    *string = STRING_NULL;
+    char* ret = checked_malloc(n + 1);
+    strncpy(ret, source, n);
+    ret[n] = '\0';
+    return ret;
 }
 
 bool check_substr(
@@ -114,55 +62,46 @@ bool check_substr(
     return true;
 }
 
-struct substr string_substr(const struct string* string, size_t pos, size_t len)
+struct substr string_substr(const char* string, size_t pos, size_t len)
 {
-    bool valid_substr = check_substr(string->len, pos, len, &len);
+    bool valid_substr = check_substr(strlen(string), pos, len, &len);
     assert(valid_substr);
     return (struct substr){string, pos, len};
 }
 
-return_t string_insert(struct string* into, size_t pos, const struct string* what)
+return_t string_insert(char** into, size_t pos, const char* what)
 {
-    if (pos > into->len)
+    size_t old_len = strlen(*into);
+    size_t add_len = strlen(what);
+
+    if (pos > old_len)
         return ERR_INVALID_RANGE;
 
-    size_t old_len = into->len;
-
-    return_t ret = string_reserve(into, into->len + what->len);
-    if (ret != SUCCESS)
-        return ret;
+    string_reserve(into, old_len + add_len);
 
     size_t suffix_len = old_len - pos;
-    char* suffix = into->data + pos;
+    char* suffix = *into + pos;
 
-    memmove(suffix + what->len, suffix, suffix_len);
-    memcpy(suffix, what->data, what->len);
+    memmove(suffix + add_len, suffix, suffix_len);
+    memcpy(suffix, what, add_len);
+    (*into)[old_len + add_len] = '\0';
 
     return SUCCESS;
 }
 
-return_t string_erase(struct string* from, size_t pos, size_t len)
+return_t string_erase(char** from, size_t pos, size_t len)
 {
-    if (!check_substr(from->len, pos, len, &len))
+    size_t old_len = strlen(*from);
+    if (!check_substr(old_len, pos, len, &len))
         return ERR_INVALID_RANGE;
 
-    char* erased = from->data + pos;
-    size_t suffix_len = from->len - pos - len;
+    char* erased = *from + pos;
+    size_t suffix_len = old_len - pos - len;
 
     memmove(erased, erased + len, suffix_len);
-    from->len -= len;
-    from->data[from->len] = '\0';
+    (*from)[old_len - len] = '\0';
 
     return SUCCESS;
-}
-
-int string_cmp(const struct string* a, const struct string* b)
-{
-    size_t s = min(a->len, b->len);
-    int ret = strncmp(a->data, b->data, s);
-    if (!ret)
-        ret = a->data[s] - b->data[s];
-    return ret;
 }
 
 
@@ -170,7 +109,7 @@ int string_cmp(const struct string* a, const struct string* b)
 
 const char* substr_begin(const struct substr* substr)
 {
-    return substr->str->data + substr->pos;
+    return substr->str + substr->pos;
 }
 
 struct substr substr_substr(const struct substr* substr, size_t pos, size_t len)
@@ -180,8 +119,8 @@ struct substr substr_substr(const struct substr* substr, size_t pos, size_t len)
     return (struct substr){substr->str, substr->pos + pos, len};
 }
 
-return_t substr_to_string_alloc(struct string* out, const struct substr* sub)
+char* substr_to_string_alloc(const struct substr* sub)
 {
-    return string_copy_cstr_n_alloc(out, substr_begin(sub), sub->len);
+    return string_copy_n_alloc(substr_begin(sub), sub->len);
 }
 

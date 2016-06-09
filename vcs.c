@@ -8,120 +8,116 @@
 #include "parse.h"
 #include "delta.h"
 
-int revision_for_filename(const struct string* filename)
+int version_for_filename(const char* filename)
 {
-    char *p = filename->data + filename->len;
-    while (p != filename->data && isdigit(*(p-1)))
+    const char *p = filename + strlen(filename);
+    while (p != filename && isdigit(*(p-1)))
         --p;
     if (*p == '\0')
         return 0;
     return atoi(p);
 }
 
-return_t filename_for_revision(struct string* filename, int revision)
+char* filename_for_version(const char* filename, int version)
 {
-    if (revision == 0)
-        return SUCCESS;
+    char* ret = string_copy_alloc(filename);
 
-    char *p = filename->data + filename->len;
-    while (p != filename->data && *p != '.')
+    if (version == 0)
+        return ret;
+
+    size_t len = strlen(ret);
+    char *p = ret + len;
+    while (p != ret && *p != '.')
         --p;
 
-    size_t suffix_pos = p - filename->data;
+    size_t suffix_pos = p - ret;
     if (suffix_pos == 0)
-        suffix_pos = filename->len;
+        suffix_pos = len;
 
-    return_t ret = string_reserve(filename, suffix_pos + 6);
-    if (ret == SUCCESS)
-        ret = string_erase(filename, suffix_pos, FICTIVE_LEN);
+    return_t err = string_erase(&ret, suffix_pos, FICTIVE_LEN);
+    assert(err == SUCCESS);
 
-    if (ret == SUCCESS)
-        sprintf(filename->data + suffix_pos, ".%d", revision);
+    char buf[10];
+    sprintf(buf, ".%d", version);
+
+    err = string_insert(&ret, suffix_pos, buf);
+    assert(err == SUCCESS);
 
     return ret;
 }
 
 void vcs_free(struct vcs_state* vcs)
 {
-    string_free(&vcs->working_state);
-    string_free(&vcs->filename);
+    free(vcs->working_state);
+    free(vcs->base_filename);
+    free(vcs->cur_filename);
     *vcs = VCS_NULL;
 }
 
-return_t vcs_open(struct vcs_state* vcs, const struct string* fname, int version)
+return_t vcs_open(struct vcs_state* vcs, const char* fname, int version)
 {
     assert(vcs != NULL);
     assert(fname != NULL);
-    assert(!string_is_null(fname));
 
-    return_t ret = SUCCESS;
-
-    struct string versioned_file = STRING_NULL;
-    ret = string_copy_alloc(&versioned_file, fname);
-
-    if (ret == SUCCESS)
-        ret = filename_for_revision(&versioned_file, version);
+    char* versioned_file = filename_for_version(fname, version);
 
     FILE* f;
-    if (ret == SUCCESS)
-    {
-        f = fopen(versioned_file.data, "r");
-        if (f == NULL)
-            ret = ERR_NO_SUCH_FILE;
-    }
+    return_t ret = SUCCESS;
+    f = fopen(versioned_file, "r");
+    if (f == NULL)
+        ret = ERR_NO_SUCH_FILE;
 
+    char* new_working_state = NULL;
     if (ret == SUCCESS)
     {
-        ret = read_all(&vcs->working_state, f);
+        ret = read_all(&new_working_state, f);
         fclose(f);
     }
 
     if (ret == SUCCESS)
     {
-        string_free(&vcs->filename);
-        vcs->filename = versioned_file;
+        vcs_free(vcs);
+
+        vcs->working_state = new_working_state;
+        vcs->base_filename = string_copy_alloc(fname);
+        vcs->cur_filename = versioned_file;
         vcs->version = version;
     }
     else
-        string_free(&versioned_file);
+    {
+        free(versioned_file);
+        free(new_working_state);
+    }
+
     return ret;
 }
 
 return_t vcs_print(const struct vcs_state* vcs, FILE* stream)
 {
-    return fputs(vcs->working_state.data, stream) >= 0 
+    return fputs(vcs->working_state, stream) >= 0 
         ? SUCCESS
         : ERR_NO_SUCH_FILE;
 }
 
 return_t vcs_edit(struct vcs_state* vcs,
-        size_t i, size_t j, const struct string* data)
+        size_t i, size_t j, const char* data)
 {
     assert(vcs != NULL);
     assert(data != NULL);
-    assert(!string_is_null(data));
 
     size_t len = j - i + 1;
-    if (i > j || !check_substr(vcs->working_state.len, i, len, NULL))
+    if (i > j || !check_substr(strlen(vcs->working_state), i, len, NULL))
         return ERR_INVALID_RANGE;
 
-    return_t ret = SUCCESS;
+    return_t ret = string_erase(&vcs->working_state, i, len);
+    assert(ret == SUCCESS);
+    ret = string_insert(&vcs->working_state, i, data);
+    assert(ret == SUCCESS);
 
-    if (data->len > len)
-        ret = string_reserve(&vcs->working_state,
-                vcs->working_state.len + data->len - len);
-
-    if (ret == SUCCESS)
-    {
-        ret = string_erase(&vcs->working_state, i, len);
-        assert(ret == SUCCESS);
-        ret = string_insert(&vcs->working_state, i, data);
-        assert(ret == SUCCESS);
-    }
-    return ret;
+    return SUCCESS;
 }
 
-return_t vcs_add(struct vcs_state* vcs, size_t i, const struct string* data)
+return_t vcs_add(struct vcs_state* vcs, size_t i, const char* data)
 {
     assert(vcs != NULL);
 
@@ -135,9 +131,9 @@ return_t vcs_remove(struct vcs_state* vcs, size_t i, size_t j)
     return string_erase(&vcs->working_state, i, j - i + 1);
 }
 
-static bool file_exists(const struct string * path)
+static bool file_exists(const char * path)
 {
-    FILE* f = fopen(path->data, "r");
+    FILE* f = fopen(path, "r");
     if (f == NULL)
         return false;
     fclose(f);
@@ -145,21 +141,19 @@ static bool file_exists(const struct string * path)
 }
 
 static return_t find_new_version(
-        int* new_version, struct string* new_filename,
+        int* new_version, char** new_filename,
         struct vcs_state* vcs)
 {
-    return_t ret = string_copy_alloc(new_filename, &vcs->filename);
-    for (int v = vcs->version + 1; v < 100000 && ret == SUCCESS; ++v)
+    for (int v = vcs->version + 1; v < 100000; ++v)
     {
-        ret = filename_for_revision(new_filename, v);
-        if (ret != SUCCESS)
-            return ret;
+        *new_filename = filename_for_version(vcs->base_filename, v);
 
-        if (!file_exists(new_filename))
+        if (!file_exists(*new_filename))
         {
             *new_version = v;
             return SUCCESS;
         }
+        free(*new_filename);
     }
     return ERR_VERSIONS_LIMIT;
 }
@@ -168,31 +162,31 @@ return_t vcs_push(struct vcs_state* vcs)
 {
     assert(vcs != NULL);
 
-    FILE* clean_file = fopen(vcs->filename.data, "r");
+    FILE* clean_file = fopen(vcs->cur_filename, "r");
     if (clean_file == NULL)
         return ERR_NO_SUCH_FILE;
 
-    struct string clean_state = STRING_NULL;
+    char* clean_state = NULL;
     return_t ret = read_all(&clean_state, clean_file);
 
     struct delta delta = DELTA_NULL;
-    delta.parent = vcs->version;
     if (ret == SUCCESS)
     {
         fclose(clean_file);
         string_shrink(&vcs->working_state);
-        ret = delta_calc(&delta, &clean_state, &vcs->working_state);
+        delta = delta_calc(clean_state, vcs->working_state);
     }
+    delta.parent = vcs->version;
 
     int new_version;
-    struct string new_filename;
+    char* new_filename = NULL;
     if (ret == SUCCESS)
         ret = find_new_version(&new_version, &new_filename, vcs);
 
     FILE* new_file;
     if (ret == SUCCESS)
     {
-        new_file = fopen(new_filename.data, "w");
+        new_file = fopen(new_filename, "w");
         if (new_file == NULL)
             ret = ERR_WRITE_ERROR;
     }
@@ -205,11 +199,11 @@ return_t vcs_push(struct vcs_state* vcs)
 
     if (ret == SUCCESS)
     {
-        string_free(&vcs->filename);
-        string_free(&clean_state);
+        free(vcs->cur_filename);
+        free(clean_state);
         delta_free(&delta);
 
-        vcs->filename = new_filename;
+        vcs->cur_filename = new_filename;
         vcs->version = new_version;
     }
 

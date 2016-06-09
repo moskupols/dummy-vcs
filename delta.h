@@ -18,7 +18,7 @@ struct delta_line
     size_t pos;
     union
     {
-        struct string text;
+        char* text;
         size_t erase_len;
     };
 
@@ -27,19 +27,19 @@ struct delta_line
 
 struct delta
 {
-    int parent; // TODO revision_t
+    int parent;
     struct delta_line* lines;
 };
 #define DELTA_NULL {-1, NULL}
 
-return_t delta_calc(struct delta* out, const struct string* a, const struct string* b);
+struct delta delta_calc(const char* a, const char* b);
 return_t delta_load(struct delta* out, FILE* stream);
 
 void delta_free(struct delta* delta);
 
-return_t delta_apply(struct string* text, const struct delta *delta);
+return_t delta_apply(char** text, const struct delta *delta);
 return_t delta_apply_alloc(
-        struct string* out, const struct delta* delta, const struct string* source);
+        char** out, const struct delta* delta, const char* source);
 
 return_t delta_save(const struct delta* delta, FILE* stream);
 

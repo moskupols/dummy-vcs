@@ -7,14 +7,10 @@
 
 int main()
 {
-    struct string s = STRING_NULL;
-    string_assign_cstr(&s, "main.c");
-
     struct vcs_state vcs = VCS_NULL;
-    vcs_open(&vcs, &s, 0);
+    vcs_open(&vcs, "Makefile", 0);
 
-    string_assign_cstr(&s, "cool!");
-    vcs_edit(&vcs, 3, 3, &s);
+    vcs_edit(&vcs, 3, 3, "cool!");
 
     vcs_print(&vcs, stdout);
 
