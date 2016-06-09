@@ -8,7 +8,7 @@
 int main()
 {
     struct vcs_state vcs = VCS_NULL;
-    vcs_open(&vcs, "main.c", 0);
+    vcs_open(&vcs, "Makefile", 0);
 
     vcs_edit(&vcs, 3, 3, "cool!");
 
