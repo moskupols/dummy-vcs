@@ -10,7 +10,8 @@
 
 static void delta_line_free(struct delta_line* line)
 {
-    free(line->text);
+    if (line->type == DELTA_ADD)
+        free(line->text);
 }
 
 static void free_delta_lines(struct delta_line* head)
