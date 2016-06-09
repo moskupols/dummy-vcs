@@ -4,14 +4,28 @@
 #include <errno.h>
 #include <assert.h>
 
-return_t _my_realloc(void** inout, size_t new_size)
+static void* check_alloc_result(void* ptr)
 {
-    void* new_ptr = realloc(*inout, new_size);
-    if (new_ptr == NULL)
+    if (ptr == NULL)
     {
         assert(errno == ENOMEM);
-        return ERR_NO_MEMORY;
+        exit(ENOMEM);
     }
-    *inout = new_ptr;
-    return SUCCESS;
+    return ptr;
 }
+
+void checked_realloc(void** inout, size_t new_size)
+{
+    *inout = check_alloc_result(realloc(*inout, new_size));
+}
+
+void* checked_malloc(size_t size)
+{
+    return check_alloc_result(malloc(size));
+}
+
+void* checked_calloc(size_t n_memb, size_t size)
+{
+    return check_alloc_result(calloc(n_memb, size));
+}
+

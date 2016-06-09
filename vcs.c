@@ -8,7 +8,7 @@
 #include "parse.h"
 #include "delta.h"
 
-int revision_for_filename(const struct string* filename)
+int version_for_filename(const struct string* filename)
 {
     char *p = filename->data + filename->len;
     while (p != filename->data && isdigit(*(p-1)))
@@ -18,25 +18,30 @@ int revision_for_filename(const struct string* filename)
     return atoi(p);
 }
 
-return_t filename_for_revision(struct string* filename, int revision)
+struct string filename_for_version(const struct string* filename, int version)
 {
-    if (revision == 0)
-        return SUCCESS;
+    struct string ret = string_copy_alloc(filename);
 
-    char *p = filename->data + filename->len;
-    while (p != filename->data && *p != '.')
+    if (version == 0)
+        return ret;
+
+    char *p = ret.data + ret.len;
+    while (p != ret.data && *p != '.')
         --p;
 
-    size_t suffix_pos = p - filename->data;
+    size_t suffix_pos = p - ret.data;
     if (suffix_pos == 0)
-        suffix_pos = filename->len;
+        suffix_pos = ret.len;
 
-    return_t ret = string_reserve(filename, suffix_pos + 6);
-    if (ret == SUCCESS)
-        ret = string_erase(filename, suffix_pos, FICTIVE_LEN);
+    return_t err = string_erase(&ret, suffix_pos, FICTIVE_LEN);
+    assert(err == SUCCESS);
 
-    if (ret == SUCCESS)
-        sprintf(filename->data + suffix_pos, ".%d", revision);
+    char buf[10];
+    sprintf(buf, ".%d", version);
+    struct string s = string_from_cstr(buf);
+
+    err = string_insert(&ret, suffix_pos, &s);
+    assert(err == SUCCESS);
 
     return ret;
 }
@@ -44,7 +49,8 @@ return_t filename_for_revision(struct string* filename, int revision)
 void vcs_free(struct vcs_state* vcs)
 {
     string_free(&vcs->working_state);
-    string_free(&vcs->filename);
+    string_free(&vcs->base_filename);
+    string_free(&vcs->cur_filename);
     *vcs = VCS_NULL;
 }
 
@@ -54,36 +60,36 @@ return_t vcs_open(struct vcs_state* vcs, const struct string* fname, int version
     assert(fname != NULL);
     assert(!string_is_null(fname));
 
-    return_t ret = SUCCESS;
-
-    struct string versioned_file = STRING_NULL;
-    ret = string_copy_alloc(&versioned_file, fname);
-
-    if (ret == SUCCESS)
-        ret = filename_for_revision(&versioned_file, version);
+    struct string versioned_file = filename_for_version(fname, version);
 
     FILE* f;
-    if (ret == SUCCESS)
-    {
-        f = fopen(versioned_file.data, "r");
-        if (f == NULL)
-            ret = ERR_NO_SUCH_FILE;
-    }
+    return_t ret = SUCCESS;
+    f = fopen(versioned_file.data, "r");
+    if (f == NULL)
+        ret = ERR_NO_SUCH_FILE;
 
+    struct string new_working_state = STRING_NULL;
     if (ret == SUCCESS)
     {
-        ret = read_all(&vcs->working_state, f);
+        ret = read_all(&new_working_state, f);
         fclose(f);
     }
 
     if (ret == SUCCESS)
     {
-        string_free(&vcs->filename);
-        vcs->filename = versioned_file;
+        vcs_free(vcs);
+
+        vcs->working_state = new_working_state;
+        vcs->base_filename = string_copy_alloc(fname);
+        vcs->cur_filename = versioned_file;
         vcs->version = version;
     }
     else
+    {
         string_free(&versioned_file);
+        string_free(&new_working_state);
+    }
+
     return ret;
 }
 
@@ -105,20 +111,16 @@ return_t vcs_edit(struct vcs_state* vcs,
     if (i > j || !check_substr(vcs->working_state.len, i, len, NULL))
         return ERR_INVALID_RANGE;
 
-    return_t ret = SUCCESS;
-
     if (data->len > len)
-        ret = string_reserve(&vcs->working_state,
-                vcs->working_state.len + data->len - len);
+        string_reserve(&vcs->working_state,
+            vcs->working_state.len + data->len - len);
 
-    if (ret == SUCCESS)
-    {
-        ret = string_erase(&vcs->working_state, i, len);
-        assert(ret == SUCCESS);
-        ret = string_insert(&vcs->working_state, i, data);
-        assert(ret == SUCCESS);
-    }
-    return ret;
+    return_t ret = string_erase(&vcs->working_state, i, len);
+    assert(ret == SUCCESS);
+    ret = string_insert(&vcs->working_state, i, data);
+    assert(ret == SUCCESS);
+
+    return SUCCESS;
 }
 
 return_t vcs_add(struct vcs_state* vcs, size_t i, const struct string* data)
@@ -148,18 +150,16 @@ static return_t find_new_version(
         int* new_version, struct string* new_filename,
         struct vcs_state* vcs)
 {
-    return_t ret = string_copy_alloc(new_filename, &vcs->filename);
-    for (int v = vcs->version + 1; v < 100000 && ret == SUCCESS; ++v)
+    for (int v = vcs->version + 1; v < 100000; ++v)
     {
-        ret = filename_for_revision(new_filename, v);
-        if (ret != SUCCESS)
-            return ret;
+        *new_filename = filename_for_version(&vcs->base_filename, v);
 
         if (!file_exists(new_filename))
         {
             *new_version = v;
             return SUCCESS;
         }
+        string_free(new_filename);
     }
     return ERR_VERSIONS_LIMIT;
 }
@@ -168,7 +168,7 @@ return_t vcs_push(struct vcs_state* vcs)
 {
     assert(vcs != NULL);
 
-    FILE* clean_file = fopen(vcs->filename.data, "r");
+    FILE* clean_file = fopen(vcs->cur_filename.data, "r");
     if (clean_file == NULL)
         return ERR_NO_SUCH_FILE;
 
@@ -176,13 +176,13 @@ return_t vcs_push(struct vcs_state* vcs)
     return_t ret = read_all(&clean_state, clean_file);
 
     struct delta delta = DELTA_NULL;
-    delta.parent = vcs->version;
     if (ret == SUCCESS)
     {
         fclose(clean_file);
         string_shrink(&vcs->working_state);
-        ret = delta_calc(&delta, &clean_state, &vcs->working_state);
+        delta = delta_calc(&clean_state, &vcs->working_state);
     }
+    delta.parent = vcs->version;
 
     int new_version;
     struct string new_filename;
@@ -205,11 +205,11 @@ return_t vcs_push(struct vcs_state* vcs)
 
     if (ret == SUCCESS)
     {
-        string_free(&vcs->filename);
+        string_free(&vcs->cur_filename);
         string_free(&clean_state);
         delta_free(&delta);
 
-        vcs->filename = new_filename;
+        vcs->cur_filename = new_filename;
         vcs->version = new_version;
     }
 

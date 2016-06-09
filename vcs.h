@@ -8,13 +8,14 @@
 struct vcs_state
 {
     struct string working_state;
-    struct string filename;
+    struct string base_filename;
+    struct string cur_filename;
     int version;
 };
-#define VCS_NULL ((struct vcs_state){STRING_NULL, STRING_NULL, -1})
+#define VCS_NULL ((struct vcs_state){STRING_NULL, STRING_NULL, STRING_NULL, -1})
 
-int revision_for_filename(const struct string* filename);
-return_t filename_for_revision(struct string* filename, int revision);
+int version_for_filename(const struct string* filename);
+struct string filename_for_version(const struct string* filename, int version);
 
 void vcs_free(struct vcs_state* vcs);
 

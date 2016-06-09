@@ -51,9 +51,10 @@ return_t delta_apply_alloc(struct string* out,
     assert(!string_is_null(source));
     assert(out != NULL);
 
-    return_t err;
-    if ((err = string_copy_alloc(out, source)) != SUCCESS
-     || (err = delta_apply(out, delta)) != SUCCESS)
+    *out = string_copy_alloc(source);
+    return_t err = delta_apply(out, delta);
+
+    if (err != SUCCESS)
     {
         string_free(out);
         return err;
@@ -88,11 +89,11 @@ static void find_max_common_substr(
     *out_b = substr_substr(b, common_b_pos, common_len);
 }
 
-static return_t delta_calc_replace(
+static void delta_calc_replace(
         struct delta_line** out_first, struct delta_line** out_last,
         const struct substr* a, const struct substr* b)
 {
-    struct delta_line* first = calloc(1, sizeof(struct delta_line));
+    struct delta_line* first = checked_calloc(1, sizeof(struct delta_line));
     struct delta_line* last = first;
 
     if (a->len)
@@ -103,31 +104,18 @@ static return_t delta_calc_replace(
     }
     if (b->len)
     {
-        return_t ret = SUCCESS;
         if (a->len)
-        {
-            last = calloc(1, sizeof(struct delta_line));
-            if (last == NULL)
-                ret = ERR_NO_MEMORY;
-            else
-                first->tail = last;
-        }
-        if (ret != SUCCESS ||
-            (ret = substr_to_string_alloc(&last->text, b)) != SUCCESS)
-        {
-            free(first);
-            return ret;
-        }
+            first->tail = last = checked_calloc(1, sizeof(struct delta_line));
+        last->text = substr_to_string_alloc(b);
         last->type = DELTA_ADD;
         last->pos = a->pos;
     }
 
     *out_first = first;
     *out_last = last;
-    return SUCCESS;
 }
 
-static return_t delta_calc_recursive(
+static void delta_calc_recursive(
         struct delta_line** out_first, struct delta_line** out_last,
         struct substr a, struct substr b)
 {
@@ -137,7 +125,7 @@ static return_t delta_calc_recursive(
     if (a.len + b.len == 0)
     {
         *out_first = *out_last = NULL;
-        return SUCCESS;
+        return;
     }
 
     struct substr comm_a, comm_b;
@@ -149,19 +137,12 @@ static return_t delta_calc_recursive(
 
     struct delta_line *first = NULL, *mid_l = NULL, *mid_r = NULL, *last = NULL;
 
-    return_t ret = delta_calc_recursive(&first, &mid_l,
-            substr_substr(&a, comm_a.pos + comm_a.len, FICTIVE_LEN),
-            substr_substr(&b, comm_b.pos + comm_b.len, FICTIVE_LEN));
-    if (ret == SUCCESS)
-        ret = delta_calc_recursive(&mid_r, &last,
-            substr_substr(&a, 0, comm_a.pos),
-            substr_substr(&b, 0, comm_b.pos));
-
-    if (ret != SUCCESS)
-    {
-        free_delta_lines(first);
-        return ret;
-    }
+    delta_calc_recursive(&first, &mid_l,
+        substr_substr(&a, comm_a.pos + comm_a.len, FICTIVE_LEN),
+        substr_substr(&b, comm_b.pos + comm_b.len, FICTIVE_LEN));
+    delta_calc_recursive(&mid_r, &last,
+        substr_substr(&a, 0, comm_a.pos),
+        substr_substr(&b, 0, comm_b.pos));
 
     if (first == NULL)
         first = mid_r;
@@ -175,38 +156,27 @@ static return_t delta_calc_recursive(
 
     *out_first = first;
     *out_last = last;
-    return SUCCESS;
 }
 
-return_t delta_calc(struct delta* out,
-        const struct string* a, const struct string* b)
+struct delta delta_calc(const struct string* a, const struct string* b)
 {
-    assert(out != NULL);
     assert(a != NULL);
     assert(b != NULL);
     assert(a->data != NULL);
     assert(b->data != NULL);
 
+    struct delta ret = DELTA_NULL;
+
     if (string_cmp(a, b) == 0)
-    {
-        out->lines = NULL;
-        return SUCCESS;
-    }
-
-    struct delta_line *first, *last;
-
-    return_t ret = delta_calc_recursive(
-            &first, &last,
-            string_substr(a, 0, a->len), string_substr(b, 0, b->len));
-
-    if (ret != SUCCESS)
         return ret;
 
-    if (out->lines)
-        free_delta_lines(out->lines);
-    out->lines = first;
+    struct delta_line *last;
 
-    return SUCCESS;
+    delta_calc_recursive(
+        &ret.lines, &last,
+        string_substr(a, 0, a->len), string_substr(b, 0, b->len));
+
+    return ret;
 }
 
 return_t delta_load(struct delta* out, FILE* stream)
@@ -229,24 +199,13 @@ return_t delta_load(struct delta* out, FILE* stream)
             return ERR_INVALID_DELTA;
         }
 
-        struct delta_line* new_line = calloc(1, sizeof(struct delta_line));
-        if (new_line == NULL)
-        {
-            delta_free(&res);
-            return ERR_NO_MEMORY;
-        }
+        struct delta_line* new_line = checked_calloc(1, sizeof(struct delta_line));
 
         new_line->type = type;
         if (type == DELTA_ADD)
         {
             fscanf(stream, "%zu ", &new_line->pos);
-            return_t ret = read_line(&new_line->text, stream);
-            if (ret != SUCCESS)
-            {
-                free(new_line);
-                delta_free(&res);
-                return ret;
-            }
+            read_line(&new_line->text, stream);
         }
         else
         {

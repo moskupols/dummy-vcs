@@ -27,12 +27,12 @@ struct delta_line
 
 struct delta
 {
-    int parent; // TODO revision_t
+    int parent;
     struct delta_line* lines;
 };
 #define DELTA_NULL {-1, NULL}
 
-return_t delta_calc(struct delta* out, const struct string* a, const struct string* b);
+struct delta delta_calc(const struct string* a, const struct string* b);
 return_t delta_load(struct delta* out, FILE* stream);
 
 void delta_free(struct delta* delta);

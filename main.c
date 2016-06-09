@@ -7,13 +7,12 @@
 
 int main()
 {
-    struct string s = STRING_NULL;
-    string_assign_cstr(&s, "main.c");
+    struct string s = string_from_cstr("main.c");
 
     struct vcs_state vcs = VCS_NULL;
     vcs_open(&vcs, &s, 0);
 
-    string_assign_cstr(&s, "cool!");
+    s = string_from_cstr("cool!");
     vcs_edit(&vcs, 3, 3, &s);
 
     vcs_print(&vcs, stdout);
