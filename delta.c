@@ -97,18 +97,22 @@ static void delta_calc_replace(
     struct delta_line* last = first;
 
     if (a->len)
-    {
-        first->type = DELTA_ERASE;
-        first->pos = a->pos;
-        first->erase_len = a->len;
-    }
+        *first = (struct delta_line)
+        {
+            .type = DELTA_ERASE,
+            .pos = a->pos,
+            .erase_len = a->len
+        };
     if (b->len)
     {
         if (a->len)
             first->tail = last = checked_calloc(1, sizeof(struct delta_line));
-        last->text = substr_to_string_alloc(b);
-        last->type = DELTA_ADD;
-        last->pos = a->pos;
+        *last = (struct delta_line)
+        {
+            .type = DELTA_ADD,
+            .pos = a->pos,
+            .text = substr_to_string_alloc(b),
+        };
     }
 
     *out_first = first;
