@@ -32,15 +32,19 @@ struct delta
 };
 #define DELTA_NULL {-1, NULL}
 
-struct delta delta_calc(const char* a, const char* b);
+struct delta_line* delta_calc_lines(const char* a, const char* b);
+struct delta delta_calc(const char* a, const char* b, int parent);
+
+return_t delta_load_parent(int* out, FILE* stream);
+return_t delta_load_lines(struct delta_line** out, FILE* stream);
 return_t delta_load(struct delta* out, FILE* stream);
 
+void delta_lines_free(struct delta_line* lines);
 void delta_free(struct delta* delta);
 
-return_t delta_apply(char** text, const struct delta *delta);
-return_t delta_apply_alloc(
-        char** out, const struct delta* delta, const char* source);
+return_t delta_lines_apply(char** text, const struct delta_line *lines);
+return_t delta_lines_apply_alloc(
+        char** out, const struct delta_line* lines, const char* source);
 
 return_t delta_save(const struct delta* delta, FILE* stream);
-
 

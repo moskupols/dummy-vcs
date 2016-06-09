@@ -14,23 +14,24 @@ static void delta_line_free(struct delta_line* line)
         free(line->text);
 }
 
-static void free_delta_lines(struct delta_line* head)
+void delta_lines_free(struct delta_line* head)
 {
     if (head == NULL)
         return;
-    free_delta_lines(head->tail);
+    delta_lines_free(head->tail);
     delta_line_free(head);
     free(head);
 }
 
-return_t delta_apply(char** text, const struct delta *delta)
+return_t delta_lines_apply(char** text, const struct delta_line *lines)
 {
     assert(text != NULL);
-    assert(delta != NULL);
+    if (lines == NULL)
+        return SUCCESS;
 
     return_t ret = SUCCESS;
 
-    for (const struct delta_line* line = delta->lines;
+    for (const struct delta_line* line = lines;
             ret == SUCCESS && line != NULL;
             line = line->tail)
     {
@@ -45,14 +46,14 @@ return_t delta_apply(char** text, const struct delta *delta)
     return ret;
 }
 
-return_t delta_apply_alloc(char** out,
-        const struct delta* delta, const char* source)
+return_t delta_lines_apply_alloc(char** out,
+        const struct delta_line* lines, const char* source)
 {
     assert(source != NULL);
     assert(out != NULL);
 
     *out = string_copy_alloc(source);
-    return_t err = delta_apply(out, delta);
+    return_t err = delta_lines_apply(out, lines);
 
     if (err != SUCCESS)
     {
@@ -162,42 +163,55 @@ static void delta_calc_recursive(
     *out_last = last;
 }
 
-struct delta delta_calc(const char* a, const char* b)
+struct delta_line* delta_calc_lines(const char* a, const char* b)
 {
     assert(a != NULL);
     assert(b != NULL);
 
-    struct delta ret = DELTA_NULL;
-
     if (strcmp(a, b) == 0)
-        return ret;
+        return NULL;
 
-    struct delta_line *last;
+    struct delta_line *first, *last;
 
     delta_calc_recursive(
-        &ret.lines, &last,
+        &first, &last,
         string_substr(a, 0, FICTIVE_LEN), string_substr(b, 0, FICTIVE_LEN));
 
-    return ret;
+    return first;
 }
 
-return_t delta_load(struct delta* out, FILE* stream)
+struct delta delta_calc(const char* a, const char* b, int parent)
+{
+    return (struct delta)
+    {
+        .parent = parent,
+        .lines = delta_calc_lines(a, b)
+    };
+}
+
+return_t delta_load_parent(int* out, FILE* stream)
 {
     assert(out != NULL);
+    assert(stream != NULL);
 
-    struct delta res = DELTA_NULL;
-    fscanf(stream, "%d\n", &res.parent); // TODO: check retval
-    if (res.parent < 0)
-        return ERR_INVALID_DELTA;
+    fscanf(stream, "%d\n", out);
+    return SUCCESS;
+}
 
-    struct delta_line** next_line_ptr = &res.lines;
+return_t delta_load_lines(struct delta_line** out, FILE* stream)
+{
+    assert(out != NULL);
+    assert(stream != NULL);
+
+    struct delta_line* first = NULL;
+    struct delta_line** next_line_ptr = &first;
 
     char type;
     while (fscanf(stream, "\n%c", &type) > 0) // TODO: check retval
     {
         if (type != DELTA_ADD && type != DELTA_ERASE)
         {
-            delta_free(&res);
+            delta_lines_free(first);
             return ERR_INVALID_DELTA;
         }
 
@@ -217,11 +231,16 @@ return_t delta_load(struct delta* out, FILE* stream)
         *next_line_ptr = new_line;
         next_line_ptr = &new_line->tail;
     }
-
-    if (out->lines)
-        delta_free(out);
-    *out = res;
+    *out = first;
     return SUCCESS;
+}
+
+return_t delta_load(struct delta* out, FILE* stream)
+{
+    return_t ret = delta_load_parent(&out->parent, stream);
+    if (ret == SUCCESS)
+        ret = delta_load_lines(&out->lines, stream);
+    return ret;
 }
 
 return_t delta_save(const struct delta* delta, FILE* stream)
@@ -245,7 +264,7 @@ return_t delta_save(const struct delta* delta, FILE* stream)
 
 void delta_free(struct delta* delta)
 {
-    free_delta_lines(delta->lines);
+    delta_lines_free(delta->lines);
     /* delta->parent = -1; */
     delta->lines = NULL;
 }

@@ -174,9 +174,8 @@ return_t vcs_push(struct vcs_state* vcs)
     {
         fclose(clean_file);
         string_shrink(&vcs->working_state);
-        delta = delta_calc(clean_state, vcs->working_state);
+        delta = delta_calc(clean_state, vcs->working_state, vcs->version);
     }
-    delta.parent = vcs->version;
 
     int new_version;
     char* new_filename = NULL;
