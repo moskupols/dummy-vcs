@@ -16,11 +16,7 @@ struct delta_line
     struct delta_line* tail;
 
     size_t pos;
-    union
-    {
-        char* text;
-        size_t erase_len;
-    };
+    char* text;
 
     delta_line_type type;
 };

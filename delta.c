@@ -10,8 +10,7 @@
 
 static void delta_line_free(struct delta_line* line)
 {
-    if (line->type == DELTA_ADD)
-        free(line->text);
+    free(line->text);
 }
 
 void delta_lines_free(struct delta_line* head)
@@ -39,7 +38,7 @@ return_t delta_lines_apply(char** text, const struct delta_line *lines)
         if (line->type == DELTA_ADD)
             ret = string_insert(text, line->pos, line->text);
         else
-            ret = string_erase(text, line->pos, line->erase_len);
+            ret = string_erase(text, line->pos, strlen(line->text));
         assert((*text)[strlen(*text)] == '\0');
     }
 
@@ -102,7 +101,7 @@ static void delta_calc_replace(
         {
             .type = DELTA_ERASE,
             .pos = a->pos,
-            .erase_len = a->len
+            .text = substr_to_string_alloc(a),
         };
     if (b->len)
     {
@@ -218,15 +217,8 @@ return_t delta_load_lines(struct delta_line** out, FILE* stream)
         struct delta_line* new_line = checked_calloc(1, sizeof(struct delta_line));
 
         new_line->type = type;
-        if (type == DELTA_ADD)
-        {
-            fscanf(stream, "%zu ", &new_line->pos);
-            read_line(&new_line->text, stream);
-        }
-        else
-        {
-            fscanf(stream, "%zu %zu", &new_line->pos, &new_line->erase_len); // TODO check this
-        }
+        fscanf(stream, "%zu ", &new_line->pos);
+        read_line(&new_line->text, stream);
 
         *next_line_ptr = new_line;
         next_line_ptr = &new_line->tail;
@@ -253,10 +245,7 @@ return_t delta_save(const struct delta* delta, FILE* stream)
             line = line->tail)
     {
         assert(line->type == DELTA_ADD || line->type == DELTA_ERASE);
-        if (line->type == DELTA_ADD)
-            fprintf(stream, "+ %zu %s\n", line->pos, line->text);
-        else
-            fprintf(stream, "- %zu %zu\n", line->pos, line->erase_len);
+        fprintf(stream, "%c %zu %s\n", line->type, line->pos, line->text);
     }
     // TODO: check fprintf return value: there could be errors
     return SUCCESS;
