@@ -44,6 +44,12 @@ char* string_copy_n_alloc(const char* source, size_t n)
     return ret;
 }
 
+void string_assign_copy(char** dest, const char* source)
+{
+    string_reserve(dest, strlen(source));
+    strcpy(*dest, source);
+}
+
 bool check_substr(
         size_t mylen, size_t pos, size_t new_len, size_t* new_len_p)
 {

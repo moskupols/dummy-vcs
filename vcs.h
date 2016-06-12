@@ -7,17 +7,12 @@
 
 struct vcs_state
 {
+    char* clean_state;
     char* working_state;
     char* base_filename;
-    char* cur_filename;
     int version;
 };
 #define VCS_NULL ((struct vcs_state){NULL, NULL, NULL, -1})
-
-int version_for_filename(const char* filename);
-char* filename_for_version(const char* filename, int version);
-
-void vcs_free(struct vcs_state* vcs);
 
 return_t vcs_open(struct vcs_state* vcs, const char* fname, int version);
 return_t vcs_print(const struct vcs_state* vcs, FILE* stream);
@@ -30,4 +25,6 @@ return_t vcs_push(struct vcs_state* vcs);
 return_t vcs_pull(struct vcs_state* vcs, int version);
 return_t vcs_delete_version(struct vcs_state* vcs, int version);
 return_t vcs_rebase(struct vcs_state* vcs);
+
+void vcs_free(struct vcs_state* vcs);
 

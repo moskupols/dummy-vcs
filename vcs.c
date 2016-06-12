@@ -7,51 +7,48 @@
 
 #include "parse.h"
 #include "delta.h"
+#include "version_tree.h"
 
-int version_for_filename(const char* filename)
+static return_t load_version(char** out, struct vcs_state* vcs, int version)
 {
-    const char *p = filename + strlen(filename);
-    while (p != filename && isdigit(*(p-1)))
-        --p;
-    if (*p == '\0')
-        return 0;
-    return atoi(p);
-}
-
-char* filename_for_version(const char* filename, int version)
-{
-    char* ret = string_copy_alloc(filename);
+    assert(version >= 0);
 
     if (version == 0)
-        return ret;
+        return read_file(out, vcs->base_filename);
 
-    size_t len = strlen(ret);
-    char *p = ret + len;
-    while (p != ret && *p != '.')
-        --p;
+    return_t ret = SUCCESS;
 
-    size_t suffix_pos = p - ret;
-    if (suffix_pos == 0)
-        suffix_pos = len;
+    char* version_filename = filename_for_version(vcs->base_filename, version);
+    FILE* f = fopen(version_filename, "r");
+    free(version_filename);
 
-    return_t err = string_erase(&ret, suffix_pos, FICTIVE_LEN);
-    assert(err == SUCCESS);
+    if (f == NULL)
+        ret = ERR_NO_SUCH_FILE;
 
-    char buf[10];
-    sprintf(buf, ".%d", version);
+    struct delta delta = DELTA_NULL;
+    if (ret == SUCCESS)
+        ret = delta_load_parent(&delta.parent, f);
 
-    err = string_insert(&ret, suffix_pos, buf);
-    assert(err == SUCCESS);
+    char* text = NULL;
+    if (ret == SUCCESS)
+        ret = load_version(&text, vcs, delta.parent);
+
+    if (ret == SUCCESS)
+        ret = delta_load_lines(&delta.lines, f);
+
+    if (ret == SUCCESS)
+        ret = delta_lines_apply(&text, delta.lines);
+
+    if (ret == SUCCESS)
+        *out = text;
+    else
+        free(text);
+
+    delta_free(&delta);
+    if (f)
+        fclose(f);
 
     return ret;
-}
-
-void vcs_free(struct vcs_state* vcs)
-{
-    free(vcs->working_state);
-    free(vcs->base_filename);
-    free(vcs->cur_filename);
-    *vcs = VCS_NULL;
 }
 
 return_t vcs_open(struct vcs_state* vcs, const char* fname, int version)
@@ -59,35 +56,21 @@ return_t vcs_open(struct vcs_state* vcs, const char* fname, int version)
     assert(vcs != NULL);
     assert(fname != NULL);
 
-    char* versioned_file = filename_for_version(fname, version);
+    struct vcs_state new_vcs = VCS_NULL;
 
-    FILE* f;
-    return_t ret = SUCCESS;
-    f = fopen(versioned_file, "r");
-    if (f == NULL)
-        ret = ERR_NO_SUCH_FILE;
-
-    char* new_working_state = NULL;
-    if (ret == SUCCESS)
-    {
-        ret = read_all(&new_working_state, f);
-        fclose(f);
-    }
+    new_vcs.base_filename = string_copy_alloc(fname);
+    new_vcs.version = version;
+    return_t ret = load_version(&new_vcs.clean_state, &new_vcs, version);
 
     if (ret == SUCCESS)
     {
+        new_vcs.working_state = string_copy_alloc(new_vcs.clean_state);
+
         vcs_free(vcs);
-
-        vcs->working_state = new_working_state;
-        vcs->base_filename = string_copy_alloc(fname);
-        vcs->cur_filename = versioned_file;
-        vcs->version = version;
+        *vcs = new_vcs;
     }
     else
-    {
-        free(versioned_file);
-        free(new_working_state);
-    }
+        vcs_free(&new_vcs);
 
     return ret;
 }
@@ -162,25 +145,12 @@ return_t vcs_push(struct vcs_state* vcs)
 {
     assert(vcs != NULL);
 
-    FILE* clean_file = fopen(vcs->cur_filename, "r");
-    if (clean_file == NULL)
-        return ERR_NO_SUCH_FILE;
-
-    char* clean_state = NULL;
-    return_t ret = read_all(&clean_state, clean_file);
-
-    struct delta delta = DELTA_NULL;
-    if (ret == SUCCESS)
-    {
-        fclose(clean_file);
-        string_shrink(&vcs->working_state);
-        delta = delta_calc(clean_state, vcs->working_state, vcs->version);
-    }
+    string_shrink(&vcs->working_state);
+    struct delta delta = delta_calc(vcs->clean_state, vcs->working_state, vcs->version);
 
     int new_version;
     char* new_filename = NULL;
-    if (ret == SUCCESS)
-        ret = find_new_version(&new_version, &new_filename, vcs);
+    return_t ret = find_new_version(&new_version, &new_filename, vcs);
 
     FILE* new_file;
     if (ret == SUCCESS)
@@ -198,14 +168,20 @@ return_t vcs_push(struct vcs_state* vcs)
 
     if (ret == SUCCESS)
     {
-        free(vcs->cur_filename);
-        free(clean_state);
-        delta_free(&delta);
-
-        vcs->cur_filename = new_filename;
+        string_assign_copy(&vcs->clean_state, vcs->working_state);
         vcs->version = new_version;
     }
+    delta_free(&delta);
+    free(new_filename);
 
     return ret;
+}
+
+void vcs_free(struct vcs_state* vcs)
+{
+    free(vcs->clean_state);
+    free(vcs->working_state);
+    free(vcs->base_filename);
+    *vcs = VCS_NULL;
 }
 

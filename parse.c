@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "utils.h"
 
@@ -29,5 +30,15 @@ return_t read_until(char** out, FILE* stream, int stop_char)
     *out = buf;
     string_shrink(out);
     return SUCCESS;
+}
+
+return_t read_file(char** out, const char* path)
+{
+    FILE* f = fopen(path, "r");
+    if (f == NULL)
+        return ERR_NO_SUCH_FILE;
+    return_t ret = read_all(out, f);
+    fclose(f);
+    return ret;
 }
 
