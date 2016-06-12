@@ -123,14 +123,14 @@ int main()
         }
         else if (strcmp(command_buf, "push") == 0)
         {
-            handle_result(vcs_push(&vcs) );
+            handle_result(vcs_push(&vcs));
             printf("%d\n", vcs.version);
         }
         else if (strcmp(command_buf, "pull") == 0)
         {
             int v;
             scanf("%d", &v);
-            handle_result(vcs_pull(&vcs, v) );
+            handle_result(vcs_pull(&vcs, v));
         }
         else if (strcmp(command_buf, "delete_version") == 0)
         {
