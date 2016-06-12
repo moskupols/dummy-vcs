@@ -41,8 +41,12 @@ void sample_test()
     assert(strcmp(vcs.working_state, "IBKS4567890XYZ") == 0);
 
     /* assert(vcs_pull(&vcs, 2) == ERR_INVALID_VERSION); */
+    assert(vcs_open(&vcs, "a.txt", 2) == ERR_INVALID_VERSION);
     assert(vcs_push(&vcs) == SUCCESS);
     assert(vcs.version == 2);
+
+    assert(vcs_open(&vcs, "a.txt", 2) == SUCCESS);
+    assert(strcmp(vcs.working_state, "IBKS4567890XYZ") == 0);
 
     /* assert(vcs_pull(&vcs, 1) == SUCCESS); */
     vcs_free(&vcs);

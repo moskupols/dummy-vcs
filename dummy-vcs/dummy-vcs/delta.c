@@ -44,6 +44,7 @@ return_t delta_line_load(struct delta_line* out, FILE* stream)
 
     out->type = type;
     out->pos = pos;
+    fgetc(stream); // skip one space
     return
         SUCCESS == read_line(&out->text, stream)
         ? SUCCESS

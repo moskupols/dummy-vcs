@@ -5,17 +5,20 @@
 #include "error.h"
 #include "delta.h"
 
-return_t read_parent(int* out, FILE* f);
-return_t print_parent(int parent, FILE* f);
-
-int version_for_filename(const char* filename);
-char* filename_for_version(const char* base_fname, int version);
+//return_t read_parent(int* out, FILE* f);
+//return_t print_parent(int parent, FILE* f);
+//
+//int version_for_filename(const char* filename);
+//char* filename_for_version(const char* base_fname, int version);
 
 struct version_tree
 {
     char* base_fname;
+
+    int* parent;
+    size_t capacity;
 };
-#define VERSION_TREE_INIT { NULL }
+#define VERSION_TREE_INIT { NULL, NULL, 0 }
 static const struct version_tree version_tree_init = VERSION_TREE_INIT;
 
 return_t version_tree_load(struct version_tree* out, const char* base_fname);
