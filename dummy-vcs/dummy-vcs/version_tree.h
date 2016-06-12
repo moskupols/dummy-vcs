@@ -25,12 +25,11 @@ return_t vt_load(struct version_tree* out, const char* base_fname);
 void vt_free(struct version_tree* vt);
 
 int vt_get_parent(struct version_tree* vt, int child);
+bool vt_version_is_known(struct version_tree* vt, int version);
+
+int vt_find_common_ancestor(struct version_tree* vt, int a, int b);
 
 return_t vt_checkout(char** out, struct version_tree* vt, int version);
 
 return_t vt_push(
         int* child, struct version_tree* vt, int parent, struct delta* delta);
-
-bool vt_version_is_valid(struct version_tree* vt, int version);
-
-int vt_find_common_ancestor(struct version_tree* vt, int a, int b);

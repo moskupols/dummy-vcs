@@ -163,6 +163,23 @@ int vt_get_parent(struct version_tree* vt, int child)
     return vt->parent[child];
 }
 
+bool vt_version_is_known(struct version_tree* vt, int version)
+{
+    return version == 0 || vt_get_parent(vt, version) > -1;
+}
+
+int vt_find_common_ancestor(struct version_tree* vt, int a, int b)
+{
+    assert(vt_version_is_known(vt, a));
+    assert(vt_version_is_known(vt, b));
+
+    for (int i = a; i >= 0; i = vt_get_parent(vt, i))
+        for (int j = b; j >= 0; j = vt_get_parent(vt, j))
+            if (i == j)
+                return i;
+    return -1;
+}
+
 return_t vt_checkout(
         char** out, struct version_tree* vt, int version)
 {
