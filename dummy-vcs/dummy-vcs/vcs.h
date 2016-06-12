@@ -16,8 +16,8 @@ struct vcs_state
     struct version_tree vt;
     int version;
 };
-#define VCS_INIT \
-    ((struct vcs_state){NULL, NULL, DELTA_INIT, VERSION_TREE_INIT, -1})
+#define VCS_INIT { NULL, NULL, DELTA_INIT, VERSION_TREE_INIT, -1 }
+static const struct vcs_state vcs_init = VCS_INIT;
 
 return_t vcs_open(struct vcs_state* vcs, const char* fname, int version);
 return_t vcs_print(const struct vcs_state* vcs, FILE* stream);

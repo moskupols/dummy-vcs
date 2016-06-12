@@ -15,8 +15,8 @@ struct version_tree
 {
     char* base_fname;
 };
-#define VERSION_TREE_INIT ((struct version_tree){NULL})
-
+#define VERSION_TREE_INIT { NULL }
+static const struct version_tree version_tree_init = VERSION_TREE_INIT;
 
 return_t version_tree_load(struct version_tree* out, const char* base_fname);
 void version_tree_free(struct version_tree* vt);

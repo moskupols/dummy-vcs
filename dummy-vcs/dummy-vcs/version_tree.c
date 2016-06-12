@@ -73,7 +73,7 @@ return_t version_tree_load(struct version_tree* out, const char* base_fname)
 void version_tree_free(struct version_tree* vt)
 {
     free(vt->base_fname);
-    *vt = VERSION_TREE_INIT;
+    *vt = version_tree_init;
 }
 
 int version_tree_get_parent(struct version_tree* vt, int v)
@@ -169,7 +169,7 @@ return_t version_tree_push(
     char* new_filename = NULL;
     return_t ret = find_new_version(&new_version, &new_filename, parent, vt);
 
-    FILE* new_file;
+    FILE* new_file = NULL;
     if (ret == SUCCESS)
     {
         new_file = fopen(new_filename, "w");

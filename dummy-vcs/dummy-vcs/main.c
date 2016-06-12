@@ -3,16 +3,13 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "my_string.h"
-#include "parse.h"
-#include "delta.h"
 #include "vcs.h"
 
 void sample_test()
 {
     const char* init_text = "ABCDEFGH1234567890";
 
-    system("rm a.*");
+    system("del a.*");
 
     FILE* f = fopen("a.txt", "w");
     fputs(init_text, f);

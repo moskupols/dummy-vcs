@@ -8,6 +8,15 @@
 #include "parse.h"
 #include "utils.h"
 
+struct delta_line delta_line_new(size_t pos, char* text, delta_line_type_t type)
+{
+    struct delta_line ret;
+    ret.pos = pos;
+    ret.text = text;
+    ret.type = type;
+    return ret;
+}
+
 void delta_append(struct delta* delta, struct delta_line line)
 {
     if (delta->len == delta->capacity)
@@ -30,7 +39,7 @@ return_t delta_line_load(struct delta_line* out, FILE* stream)
         return ERR_INVALID_DELTA;
 
     size_t pos = 0;
-    if (fscanf(stream, "%zu ", &pos) <= 0)
+    if (fscanf(stream, "%Iu ", &pos) <= 0)
         return ERR_INVALID_DELTA;
 
     out->type = type;
@@ -49,7 +58,7 @@ return_t delta_load(struct delta* out, FILE* stream)
     struct delta new_delta = DELTA_INIT;
     struct delta_line next_line = DELTA_LINE_INIT;
 
-    return_t ret = SUCCESS;
+    return_t ret;
     while ((ret = delta_line_load(&next_line, stream)) == SUCCESS)
         delta_append(&new_delta, next_line);
 
@@ -78,14 +87,14 @@ void delta_free(struct delta* delta)
     for (size_t i = 0; i < delta->len; ++i)
         delta_line_free(delta->lines + i);
     free(delta->lines);
-    *delta = DELTA_INIT;
+    *delta = delta_init;
 }
 
 return_t delta_line_print(const struct delta_line* line, FILE* stream)
 {
     assert(line->type == DELTA_ADD || line->type == DELTA_ERASE);
     return
-        0 < fprintf(stream, "%c %zu %s\n", line->type, line->pos, line->text)
+        0 < fprintf_s(stream, "%c %Iu %s\n", line->type, line->pos, line->text)
         ? SUCCESS
         : ERR_WRITE;
 }

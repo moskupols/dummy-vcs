@@ -3,7 +3,6 @@
 #include <stdio.h>
 
 #include "error.h"
-#include "my_string.h"
 
 return_t read_until(char** out, FILE* stream, int stop_char);
 

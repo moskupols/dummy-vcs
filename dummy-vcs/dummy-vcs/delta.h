@@ -16,8 +16,10 @@ struct delta_line
 
     delta_line_type_t type;
 };
-#define DELTA_LINE_INIT ((struct delta_line){0, NULL, '?'})
-#define delta_line_new(pos, text, type) ((struct delta_line){pos, text, type})
+#define DELTA_LINE_INIT { 0, NULL, '?' }
+static const struct delta_line delta_line_init = DELTA_LINE_INIT;
+
+struct delta_line delta_line_new( size_t pos, char* text, delta_line_type_t type );
 
 struct delta
 {
@@ -25,7 +27,8 @@ struct delta
     size_t len;
     size_t capacity;
 };
-#define DELTA_INIT ((struct delta){NULL, 0, 0})
+#define DELTA_INIT { NULL, 0, 0 }
+static const struct delta delta_init = DELTA_INIT;
 
 void delta_append(struct delta* delta, struct delta_line line);
 

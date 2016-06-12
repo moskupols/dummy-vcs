@@ -106,6 +106,6 @@ void vcs_free(struct vcs_state* vcs)
     free(vcs->working_state);
     delta_free(&vcs->changes);
     version_tree_free(&vcs->vt);
-    *vcs = VCS_INIT;
+    *vcs = vcs_init;
 }
 
