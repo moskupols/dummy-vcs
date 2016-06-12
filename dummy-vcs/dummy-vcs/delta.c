@@ -108,18 +108,17 @@ return_t delta_print(const struct delta* delta, FILE* stream)
     return ret;
 }
 
-return_t delta_apply(char** text, const struct delta *delta)
+static return_t delta_apply_directed(char** text, const struct delta *delta, size_t start, int step)
 {
     assert(text != NULL);
 
     return_t ret = SUCCESS;
 
-    for (size_t i = 0; ret == SUCCESS && i < delta->len; ++i)
-    {
+    for (size_t i = start; ret == SUCCESS && i < delta->len; i += step) {
         struct delta_line* line = delta->lines + i;
 
         assert(line->type == DELTA_ADD || line->type == DELTA_ERASE);
-        if (line->type == DELTA_ADD)
+        if ((line->type == DELTA_ADD) ^ (step == -1))
             ret = string_insert(text, line->pos, line->text);
         else
             ret = string_erase(text, line->pos, strlen(line->text));
@@ -129,18 +128,12 @@ return_t delta_apply(char** text, const struct delta *delta)
     return ret;
 }
 
-return_t delta_apply_alloc(char** out,
-        const struct delta* delta, const char* source)
+return_t delta_apply(char** text, const struct delta *delta)
 {
-    assert(source != NULL);
-    assert(out != NULL);
-
-    *out = string_copy_alloc(source);
-    return_t err = delta_apply(out, delta);
-
-    if (err != SUCCESS)
-        free(*out);
-
-    return err;
+    return delta_apply_directed(text, delta, 0, 1);
 }
 
+return_t delta_apply_backwards(char** text, const struct delta *delta)
+{
+    return delta_apply_directed(text, delta, delta->len - 1, -1);
+}

@@ -19,7 +19,7 @@ return_t vcs_open(struct vcs_state* vcs, const char* fname, int version)
     return_t ret = vt_load(&new_vcs.vt, fname);
 
     if (ret == SUCCESS)
-        ret = vt_checkout(&new_vcs.clean_state, &new_vcs.vt, version);
+        ret = vt_checkout_from_root(&new_vcs.clean_state, &new_vcs.vt, version);
 
     if (ret == SUCCESS)
     {
@@ -96,6 +96,20 @@ return_t vcs_push(struct vcs_state* vcs)
         delta_free(&vcs->changes);
     }
 
+    return ret;
+}
+
+return_t vcs_pull(struct vcs_state* vcs, int version)
+{
+    return_t ret = vt_apply_path(&vcs->working_state, &vcs->vt, vcs->version, version);
+    if (ret == SUCCESS)
+    {
+        ret = vt_apply_path(&vcs->clean_state, &vcs->vt, vcs->version, version);
+        assert(ret == SUCCESS);
+
+        vcs->version = version;
+        delta_free(&vcs->changes);
+    }
     return ret;
 }
 

@@ -9,7 +9,8 @@ typedef enum
     ERR_NO_SUCH_FILE,
     ERR_READ,
     ERR_WRITE,
-    ERR_VERSIONS_LIMIT
+    ERR_VERSIONS_LIMIT,
+    ERR_DIRTY
 } return_t;
 
 

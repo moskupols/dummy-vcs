@@ -40,15 +40,21 @@ void sample_test()
     assert(vcs_edit(&vcs, 0, 2, "IBKS") == SUCCESS);
     assert(strcmp(vcs.working_state, "IBKS4567890XYZ") == 0);
 
-    /* assert(vcs_pull(&vcs, 2) == ERR_INVALID_VERSION); */
-    assert(vcs_open(&vcs, "a.txt", 2) == ERR_INVALID_VERSION);
+    assert(vcs_pull(&vcs, 2) == ERR_INVALID_VERSION);
     assert(vcs_push(&vcs) == SUCCESS);
     assert(vcs.version == 2);
 
-    assert(vcs_open(&vcs, "a.txt", 2) == SUCCESS);
+    assert(vcs_pull(&vcs, 1) == SUCCESS);
+    assert(strcmp(vcs.working_state, "A34567890XYZ") == 0);
+
+    assert(vcs_add(&vcs, 12, "ZERO") == SUCCESS);
+    assert(strcmp(vcs.working_state, "A34567890XYZZERO") == 0);
+    assert(vcs_push(&vcs) == SUCCESS);
+    assert(vcs.version == 3);
+
+    assert(vcs_pull(&vcs, 2) == SUCCESS);
     assert(strcmp(vcs.working_state, "IBKS4567890XYZ") == 0);
 
-    /* assert(vcs_pull(&vcs, 1) == SUCCESS); */
     vcs_free(&vcs);
 }
 

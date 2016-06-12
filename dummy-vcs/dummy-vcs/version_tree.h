@@ -29,7 +29,8 @@ bool vt_version_is_known(struct version_tree* vt, int version);
 
 int vt_find_common_ancestor(struct version_tree* vt, int a, int b);
 
-return_t vt_checkout(char** out, struct version_tree* vt, int version);
+return_t vt_apply_path(char** text, struct version_tree* vt, int start, int dest);
+return_t vt_checkout_from_root(char** out, struct version_tree* vt, int version);
 
 return_t vt_push(
         int* child, struct version_tree* vt, int parent, struct delta* delta);

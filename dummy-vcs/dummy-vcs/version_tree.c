@@ -173,6 +173,9 @@ int vt_find_common_ancestor(struct version_tree* vt, int a, int b)
     assert(vt_version_is_known(vt, a));
     assert(vt_version_is_known(vt, b));
 
+    if (a == 0 || b == 0)
+        return 0;
+
     for (int i = a; i >= 0; i = vt_get_parent(vt, i))
         for (int j = b; j >= 0; j = vt_get_parent(vt, j))
             if (i == j)
@@ -180,47 +183,98 @@ int vt_find_common_ancestor(struct version_tree* vt, int a, int b)
     return -1;
 }
 
-return_t vt_checkout(
-        char** out, struct version_tree* vt, int version)
+static return_t load_delta(struct delta* delta, struct version_tree* vt, int version)
 {
-    assert(version >= 0);
-
-    if (version == 0)
-        return read_file(out, vt->base_fname);
-
-    int parent = vt_get_parent(vt, version);
-    if (parent == -1)
-        return ERR_INVALID_VERSION;
-
-    char* text = NULL;
-    return_t ret = vt_checkout(&text, vt, parent);
+    assert(vt_version_is_known(vt, version));
 
     char* version_filename = filename_for_version(vt->base_fname, version);
     FILE* f = fopen(version_filename, "r");
     free(version_filename);
 
-    if (f == NULL)
-        ret = ERR_NO_SUCH_FILE;
+    return_t ret = f == NULL ? ret = ERR_NO_SUCH_FILE : SUCCESS;
 
     if (ret == SUCCESS)
         ret = read_parent(NULL, f);
-        
-    struct delta delta = DELTA_INIT;
-    if (ret == SUCCESS)
-        ret = delta_load(&delta, f);
-        
-    if (ret == SUCCESS)
-        ret = delta_apply(&text, &delta);
 
     if (ret == SUCCESS)
-        *out = text;
-    else
-        free(text);
+        ret = delta_load(delta, f);
 
-    delta_free(&delta);
-    if (f)
+    if (f != NULL)
         fclose(f);
 
+    return ret;
+}
+
+static return_t apply_upwards(char** text, struct version_tree* vt, int descendant, int ancestor)
+{
+    assert(vt_version_is_known(vt, ancestor));
+    assert(vt_version_is_known(vt, descendant));
+
+    if (descendant == ancestor)
+        return SUCCESS;
+
+    struct delta delta = DELTA_INIT;
+    return_t ret = load_delta(&delta, vt, descendant);
+
+    if (ret == SUCCESS)
+        ret = delta_apply_backwards(text, &delta);
+
+    delta_free(&delta);
+
+    return ret == SUCCESS ? apply_upwards(text, vt, vt_get_parent(vt, descendant), ancestor) : ret;
+}
+
+static return_t apply_downwards(char** text, struct version_tree* vt, int ancestor, int descendant)
+{
+    assert(vt_version_is_known(vt, ancestor));
+    assert(vt_version_is_known(vt, descendant));
+
+    if (ancestor == descendant)
+        return SUCCESS;
+
+    return_t ret = apply_downwards(text, vt, ancestor, vt_get_parent(vt, descendant));
+    struct delta delta = DELTA_INIT;
+    if (ret == SUCCESS)
+        ret = load_delta(&delta, vt, descendant);
+    if (ret == SUCCESS)
+        ret = delta_apply(text, &delta);
+    delta_free(&delta);
+
+    return ret;
+}
+
+return_t vt_checkout_from_root(
+        char** out, struct version_tree* vt, int version)
+{
+    if (!vt_version_is_known(vt, version))
+        return ERR_INVALID_VERSION;
+    char* base_text = NULL;
+    return_t ret = read_file(&base_text, vt->base_fname);
+    if (ret == SUCCESS)
+        ret = apply_downwards(&base_text, vt, 0, version);
+    if (ret == SUCCESS)
+        *out = base_text;
+    return ret;
+}
+
+return_t vt_apply_path(char** text, struct version_tree* vt, int start, int dest)
+{
+    if (!vt_version_is_known(vt, start) || !vt_version_is_known(vt, dest))
+        return ERR_INVALID_VERSION;
+    int common_ancestor = vt_find_common_ancestor(vt, start, dest);
+    if (common_ancestor < 0)
+        return ERR_INVALID_VERSION;
+
+    char* copy = string_copy_alloc(*text);
+    return_t ret = apply_upwards(&copy, vt, start, common_ancestor);
+    if (ret == SUCCESS)
+        ret = apply_downwards(&copy, vt, common_ancestor, dest);
+
+    if (ret == SUCCESS) {
+        free(*text);
+        *text = copy;
+    } else
+        free(copy);
     return ret;
 }
 
