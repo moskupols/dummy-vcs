@@ -87,8 +87,7 @@ return_t vcs_push(struct vcs_state* vcs)
 {
     assert(vcs != NULL);
 
-    return_t ret = vt_push(
-            &vcs->version, &vcs->vt, vcs->version, &vcs->changes);
+    return_t ret = vt_push(&vcs->version, &vcs->vt, vcs->version, &vcs->changes);
 
     if (ret == SUCCESS)
     {
@@ -101,14 +100,12 @@ return_t vcs_push(struct vcs_state* vcs)
 
 return_t vcs_pull(struct vcs_state* vcs, int version)
 {
-    return_t ret = vt_apply_path(&vcs->working_state, &vcs->vt, vcs->version, version);
+    return_t ret = vt_apply_path(&vcs->clean_state, &vcs->vt, vcs->version, version);
     if (ret == SUCCESS)
     {
-        ret = vt_apply_path(&vcs->clean_state, &vcs->vt, vcs->version, version);
-        assert(ret == SUCCESS);
-
-        vcs->version = version;
+        string_assign_copy(&vcs->working_state, vcs->clean_state);
         delta_free(&vcs->changes);
+        vcs->version = version;
     }
     return ret;
 }
