@@ -8,7 +8,8 @@ typedef enum
     ERR_INVALID_DELTA,
     ERR_INVALID_VERSION,
     ERR_NO_SUCH_FILE,
-    ERR_WRITE_ERROR,
+    ERR_READ,
+    ERR_WRITE,
     ERR_VERSIONS_LIMIT
 } return_t;
 

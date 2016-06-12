@@ -2,17 +2,22 @@
 
 #include <stdio.h>
 
-#include "my_string.h"
 #include "error.h"
+#include "delta.h"
+#include "version_tree.h"
 
 struct vcs_state
 {
     char* clean_state;
     char* working_state;
-    char* base_filename;
+
+    struct delta changes;
+
+    struct version_tree vt;
     int version;
 };
-#define VCS_NULL ((struct vcs_state){NULL, NULL, NULL, -1})
+#define VCS_INIT \
+    ((struct vcs_state){NULL, NULL, DELTA_INIT, VERSION_TREE_INIT, -1})
 
 return_t vcs_open(struct vcs_state* vcs, const char* fname, int version);
 return_t vcs_print(const struct vcs_state* vcs, FILE* stream);

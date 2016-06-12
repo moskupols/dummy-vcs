@@ -9,58 +9,18 @@
 #include "delta.h"
 #include "version_tree.h"
 
-static return_t load_version(char** out, struct vcs_state* vcs, int version)
-{
-    assert(version >= 0);
-
-    if (version == 0)
-        return read_file(out, vcs->base_filename);
-
-    return_t ret = SUCCESS;
-
-    char* version_filename = filename_for_version(vcs->base_filename, version);
-    FILE* f = fopen(version_filename, "r");
-    free(version_filename);
-
-    if (f == NULL)
-        ret = ERR_NO_SUCH_FILE;
-
-    struct delta delta = DELTA_NULL;
-    if (ret == SUCCESS)
-        ret = delta_load_parent(&delta.parent, f);
-
-    char* text = NULL;
-    if (ret == SUCCESS)
-        ret = load_version(&text, vcs, delta.parent);
-
-    if (ret == SUCCESS)
-        ret = delta_load_lines(&delta.lines, f);
-
-    if (ret == SUCCESS)
-        ret = delta_lines_apply(&text, delta.lines);
-
-    if (ret == SUCCESS)
-        *out = text;
-    else
-        free(text);
-
-    delta_free(&delta);
-    if (f)
-        fclose(f);
-
-    return ret;
-}
-
 return_t vcs_open(struct vcs_state* vcs, const char* fname, int version)
 {
     assert(vcs != NULL);
     assert(fname != NULL);
 
-    struct vcs_state new_vcs = VCS_NULL;
+    struct vcs_state new_vcs = VCS_INIT;
 
-    new_vcs.base_filename = string_copy_alloc(fname);
     new_vcs.version = version;
-    return_t ret = load_version(&new_vcs.clean_state, &new_vcs, version);
+    return_t ret = version_tree_load(&new_vcs.vt, fname);
+
+    if (ret == SUCCESS)
+        ret = version_tree_checkout(&new_vcs.clean_state, &new_vcs.vt, version);
 
     if (ret == SUCCESS)
     {
@@ -92,9 +52,9 @@ return_t vcs_edit(struct vcs_state* vcs,
     if (i >= j || !check_substr(strlen(vcs->working_state), i, len, NULL))
         return ERR_INVALID_RANGE;
 
-    return_t ret = string_erase(&vcs->working_state, i, len);
+    return_t ret = vcs_remove(vcs, i, j);
     assert(ret == SUCCESS);
-    ret = string_insert(&vcs->working_state, i, data);
+    ret = vcs_add(vcs, i, data);
     assert(ret == SUCCESS);
 
     return SUCCESS;
@@ -104,75 +64,38 @@ return_t vcs_add(struct vcs_state* vcs, size_t i, const char* data)
 {
     assert(vcs != NULL);
 
-    return string_insert(&vcs->working_state, i, data);
+    return_t ret = string_insert(&vcs->working_state, i, data);
+    if (ret == SUCCESS)
+        delta_append(&vcs->changes,
+                delta_line_new(i, string_copy_alloc(data), DELTA_ADD));
+    return ret;
 }
 
 return_t vcs_remove(struct vcs_state* vcs, size_t i, size_t j)
 {
     assert(vcs != NULL);
 
-    return string_erase(&vcs->working_state, i, j - i);
-}
-
-static bool file_exists(const char * path)
-{
-    FILE* f = fopen(path, "r");
-    if (f == NULL)
-        return false;
-    fclose(f);
-    return true;
-}
-
-static return_t find_new_version(
-        int* new_version, char** new_filename,
-        struct vcs_state* vcs)
-{
-    for (int v = vcs->version + 1; v < 100000; ++v)
+    if (check_substr(strlen(vcs->working_state), i, j-i, NULL))
     {
-        *new_filename = filename_for_version(vcs->base_filename, v);
-
-        if (!file_exists(*new_filename))
-        {
-            *new_version = v;
-            return SUCCESS;
-        }
-        free(*new_filename);
+        struct substr substr = string_substr(vcs->working_state, i, j-i);
+        delta_append(&vcs->changes,
+                delta_line_new(i, substr_to_string_alloc(&substr), DELTA_ERASE));
     }
-    return ERR_VERSIONS_LIMIT;
+    return string_erase(&vcs->working_state, i, j - i);
 }
 
 return_t vcs_push(struct vcs_state* vcs)
 {
     assert(vcs != NULL);
 
-    string_shrink(&vcs->working_state);
-    struct delta delta = delta_calc(vcs->clean_state, vcs->working_state, vcs->version);
-
-    int new_version;
-    char* new_filename = NULL;
-    return_t ret = find_new_version(&new_version, &new_filename, vcs);
-
-    FILE* new_file;
-    if (ret == SUCCESS)
-    {
-        new_file = fopen(new_filename, "w");
-        if (new_file == NULL)
-            ret = ERR_WRITE_ERROR;
-    }
-
-    if (ret == SUCCESS)
-    {
-        ret = delta_save(&delta, new_file);
-        fclose(new_file);
-    }
+    return_t ret = version_tree_push(
+            &vcs->version, &vcs->vt, vcs->version, &vcs->changes);
 
     if (ret == SUCCESS)
     {
         string_assign_copy(&vcs->clean_state, vcs->working_state);
-        vcs->version = new_version;
+        delta_free(&vcs->changes);
     }
-    delta_free(&delta);
-    free(new_filename);
 
     return ret;
 }
@@ -181,7 +104,8 @@ void vcs_free(struct vcs_state* vcs)
 {
     free(vcs->clean_state);
     free(vcs->working_state);
-    free(vcs->base_filename);
-    *vcs = VCS_NULL;
+    delta_free(&vcs->changes);
+    version_tree_free(&vcs->vt);
+    *vcs = VCS_INIT;
 }
 

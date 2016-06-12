@@ -20,7 +20,7 @@ void sample_test()
 
     f = fopen("a.txt", "r");
 
-    struct vcs_state vcs = VCS_NULL;
+    struct vcs_state vcs = VCS_INIT;
 
     assert(vcs_open(&vcs, "a.txt", 0) == SUCCESS);
     fclose(f);

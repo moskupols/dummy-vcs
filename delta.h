@@ -5,42 +5,38 @@
 #include "my_string.h"
 #include "error.h"
 
-typedef enum
-{
-    DELTA_ADD = '+',
-    DELTA_ERASE = '-'
-} delta_line_type;
+typedef char delta_line_type_t;
+#define DELTA_ADD '+'
+#define DELTA_ERASE '-'
 
 struct delta_line
 {
-    struct delta_line* tail;
-
     size_t pos;
     char* text;
 
-    delta_line_type type;
+    delta_line_type_t type;
 };
+#define DELTA_LINE_INIT ((struct delta_line){0, NULL, '?'})
+#define delta_line_new(pos, text, type) ((struct delta_line){pos, text, type})
 
 struct delta
 {
-    int parent;
     struct delta_line* lines;
+    size_t len;
+    size_t capacity;
 };
-#define DELTA_NULL {-1, NULL}
+#define DELTA_INIT ((struct delta){NULL, 0, 0})
 
-struct delta_line* delta_calc_lines(const char* a, const char* b);
-struct delta delta_calc(const char* a, const char* b, int parent);
+void delta_append(struct delta* delta, struct delta_line line);
 
-return_t delta_load_parent(int* out, FILE* stream);
-return_t delta_load_lines(struct delta_line** out, FILE* stream);
 return_t delta_load(struct delta* out, FILE* stream);
-
-void delta_lines_free(struct delta_line* lines);
+void delta_line_free(struct delta_line* line);
 void delta_free(struct delta* delta);
 
-return_t delta_lines_apply(char** text, const struct delta_line *lines);
-return_t delta_lines_apply_alloc(
-        char** out, const struct delta_line* lines, const char* source);
+return_t delta_line_print(const struct delta_line* line, FILE* stream);
+return_t delta_print(const struct delta* delta, FILE* stream);
 
-return_t delta_save(const struct delta* delta, FILE* stream);
+return_t delta_apply(char** text, const struct delta* delta);
+return_t delta_apply_alloc(
+        char** out, const struct delta* delta, const char* source);
 
