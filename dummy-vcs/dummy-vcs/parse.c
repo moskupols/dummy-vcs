@@ -29,7 +29,6 @@ return_t read_until(char** out, FILE* stream, int stop_char)
 
     buf[used] = '\0';
     *out = buf;
-    string_shrink(out);
     return SUCCESS;
 }
 

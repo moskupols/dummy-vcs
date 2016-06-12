@@ -8,6 +8,7 @@
 
 const char* init_text = "ABCDEFGH1234567890";
 
+// Подготовка a.txt, как в описании задачи
 void prepare_a()
 {
     system("del a.*");
@@ -17,6 +18,7 @@ void prepare_a()
     fclose(f);
 }
 
+// Проверка соответствия примеру из описания задачи
 void sample_test()
 {
     prepare_a();
@@ -60,7 +62,7 @@ void sample_test()
 
     assert(vcs_rebase(&vcs) == SUCCESS);
     assert(vcs.version == 0);
-//    assert(vcs_delete_version(&vcs, 1) == SUCCESS);
+    //    assert(vcs_delete_version(&vcs, 1) == SUCCESS);
 
     vcs_free(&vcs);
 }
@@ -92,11 +94,11 @@ int main()
             int version = 0;
             sscanf(open_buf, "%d", &version);
 
-            handle_result(vcs_open(&vcs, fname, version) );
+            handle_result(vcs_open(&vcs, fname, version));
         }
         else if (strcmp(command_buf, "print") == 0)
         {
-            handle_result(vcs_print(&vcs, stdout) );
+            handle_result(vcs_print(&vcs, stdout));
             printf("\n");
         }
         else if (strcmp(command_buf, "edit") == 0)
@@ -105,7 +107,7 @@ int main()
             char* data;
             scanf("%d %d ", &i, &j);
             read_line(&data, stdin);
-            handle_result(vcs_edit(&vcs, i, j, data) );
+            handle_result(vcs_edit(&vcs, i, j, data));
         }
         else if (strcmp(command_buf, "add") == 0)
         {
@@ -113,13 +115,13 @@ int main()
             char* data;
             scanf("%d ", &i);
             read_line(&data, stdin);
-            handle_result(vcs_add(&vcs, i, data) );
+            handle_result(vcs_add(&vcs, i, data));
         }
         else if (strcmp(command_buf, "remove") == 0)
         {
             int i, j;
             scanf("%d %d", &i, &j);
-            handle_result(vcs_remove(&vcs, i, j) );
+            handle_result(vcs_remove(&vcs, i, j));
         }
         else if (strcmp(command_buf, "push") == 0)
         {
@@ -136,7 +138,7 @@ int main()
         {
             int v;
             scanf("%d", &v);
-            handle_result(vcs_delete_version(&vcs, v) );
+            handle_result(vcs_delete_version(&vcs, v));
         }
         else if (strcmp(command_buf, "rebase") == 0)
         {
@@ -156,4 +158,3 @@ int main()
 
     return 0;
 }
-

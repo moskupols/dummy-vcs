@@ -21,13 +21,6 @@ void string_reserve(char** s, size_t new_len)
     memset(*s + old_len, 0, new_len - old_len + 1);
 }
 
-void string_shrink(char** s)
-{
-    assert(s != NULL);
-
-    checked_realloc((void**)s, strlen(*s) + 1);
-}
-
 char* string_copy_alloc(const char* source)
 {
     return string_copy_n_alloc(source, strlen(source));
@@ -112,20 +105,14 @@ return_t string_erase(char** from, size_t pos, size_t len)
 
 
 
-const char* substr_begin(const struct substr* substr)
+static const char* substr_begin(const struct substr* substr)
 {
     return substr->str + substr->pos;
-}
-
-struct substr substr_substr(const struct substr* substr, size_t pos, size_t len)
-{
-    bool valid_substr = check_substr(substr->len, pos, len, &len);
-    assert(valid_substr);
-    return (struct substr){substr->str, substr->pos + pos, len};
 }
 
 char* substr_to_string_alloc(const struct substr* sub)
 {
     return string_copy_n_alloc(substr_begin(sub), sub->len);
 }
+
 
