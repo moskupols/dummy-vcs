@@ -215,9 +215,10 @@ static return_t apply_upwards(char** text, struct version_tree* vt, int descenda
 
     struct delta delta = DELTA_INIT;
     return_t ret = load_delta(&delta, vt, descendant);
+    delta_reverse(&delta);
 
     if (ret == SUCCESS)
-        ret = delta_apply_backwards(text, &delta);
+        ret = delta_apply(text, &delta);
 
     delta_free(&delta);
 

@@ -39,5 +39,6 @@ void delta_free(struct delta* delta);
 return_t delta_line_print(const struct delta_line* line, FILE* stream);
 return_t delta_print(const struct delta* delta, FILE* stream);
 
+void delta_reverse(struct delta* delta);
+
 return_t delta_apply(char** text, const struct delta* delta);
-return_t delta_apply_backwards(char** text, const struct delta* delta);
