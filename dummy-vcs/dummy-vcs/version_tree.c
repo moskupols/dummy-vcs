@@ -260,8 +260,10 @@ return_t version_tree_push(
         fclose(new_file);
 
     if (ret == SUCCESS)
+    {
         *child = new_version;
+        set_parent(vt, *child, parent);
+    }
 
     return ret;
 }
-
