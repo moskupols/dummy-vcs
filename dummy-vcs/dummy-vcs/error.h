@@ -9,8 +9,7 @@ typedef enum
     ERR_NO_SUCH_FILE,
     ERR_READ,
     ERR_WRITE,
-    ERR_VERSIONS_LIMIT,
-    ERR_DIRTY
+    ERR_VERSIONS_LIMIT
 } return_t;
 
-
+const char* error_description(return_t r);

@@ -76,6 +76,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="delta.c" />
+    <ClCompile Include="error.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="my_string.c" />
     <ClCompile Include="parse.c" />
