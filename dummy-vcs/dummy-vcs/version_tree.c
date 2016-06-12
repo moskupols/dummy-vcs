@@ -86,18 +86,14 @@ static void replace_extension(char** fname, const char* new_extension)
     assert(err == SUCCESS);
 }
 
-static char* filename_for_version(const char* base_fname, int version)
+static void switch_filename_to_version(char** fname, int version)
 {
-    char* ret = string_copy_alloc(base_fname);
-
     if (version == 0)
-        return ret;
+        return;
 
     char buf[10];
     sprintf(buf, ".%d", version);
-    replace_extension(&ret, buf);
-
-    return ret;
+    replace_extension(fname, buf);
 }
 
 static void set_parent(struct version_tree* vt, int child, int parent)
@@ -187,7 +183,8 @@ static return_t load_delta(struct delta* delta, struct version_tree* vt, int ver
 {
     assert(vt_version_is_known(vt, version));
 
-    char* version_filename = filename_for_version(vt->base_fname, version);
+    char* version_filename = string_copy_alloc(vt->base_fname);
+    switch_filename_to_version(&version_filename, version);
     FILE* f = fopen(version_filename, "r");
     free(version_filename);
 
@@ -292,17 +289,19 @@ static return_t find_new_version(
         int* new_version, char** new_filename,
         int parent, struct version_tree* vt)
 {
+    char* fname = string_copy_alloc(vt->base_fname);
     for (int v = parent + 1; v < 10000000; ++v)
     {
-        *new_filename = filename_for_version(vt->base_fname, v);
+        switch_filename_to_version(&fname, v);
 
-        if (!file_exists(*new_filename))
+        if (!file_exists(fname))
         {
             *new_version = v;
+            *new_filename = fname;
             return SUCCESS;
         }
-        free(*new_filename);
     }
+    free(fname);
     return ERR_VERSIONS_LIMIT;
 }
 
@@ -338,4 +337,42 @@ return_t vt_push(
     }
 
     return ret;
+}
+
+return_t vt_delete_version(struct version_tree* vt, int deleted)
+{
+    struct delta deleted_delta = DELTA_INIT;
+    return_t ret = load_delta(&deleted_delta, vt, deleted);
+    if (ret != SUCCESS)
+        return ret;
+
+    assert(vt_version_is_known(vt, deleted));
+    int parent = vt_get_parent(vt, deleted);
+
+    char* fname = string_copy_alloc(vt->base_fname);
+
+    for (int i = 1; i < vt->capacity; ++i)
+        if (vt_get_parent(vt, i) == deleted)
+        {
+            struct delta child_delta = DELTA_INIT;
+            ret = load_delta(&child_delta, vt, i);
+            assert(ret == SUCCESS); // TODO handle this case
+
+            switch_filename_to_version(&fname, i);
+            FILE* f = fopen(fname, "w");
+            assert(f != NULL);
+
+            print_parent(parent, f);
+            delta_print(&deleted_delta, f);
+            delta_print(&child_delta, f);
+
+            fclose(f);
+
+            set_parent(vt, i, parent);
+        }
+    set_parent(vt, deleted, -1);
+    switch_filename_to_version(&fname, deleted);
+    DeleteFile(fname);
+    free(fname);
+    return SUCCESS;
 }

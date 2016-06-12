@@ -110,6 +110,11 @@ return_t vcs_pull(struct vcs_state* vcs, int version)
     return ret;
 }
 
+return_t vcs_delete_version(struct vcs_state* vcs, int version)
+{
+    return vt_delete_version(&vcs->vt, version);
+}
+
 void vcs_free(struct vcs_state* vcs)
 {
     free(vcs->clean_state);

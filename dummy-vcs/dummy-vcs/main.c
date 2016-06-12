@@ -55,6 +55,8 @@ void sample_test()
     assert(vcs_pull(&vcs, 2) == SUCCESS);
     assert(strcmp(vcs.working_state, "IBKS4567890XYZ") == 0);
 
+    assert(vcs_delete_version(&vcs, 1) == SUCCESS);
+
     vcs_free(&vcs);
 }
 
