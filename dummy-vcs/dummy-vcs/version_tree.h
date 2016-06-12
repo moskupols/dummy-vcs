@@ -36,3 +36,5 @@ return_t vt_push(
         int* child, struct version_tree* vt, int parent, struct delta* delta);
 
 return_t vt_delete_version(struct version_tree* vt, int version);
+
+return_t vt_reverse_from_root(struct version_tree* vt, int version);

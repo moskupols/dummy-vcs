@@ -31,5 +31,7 @@ return_t vcs_pull(struct vcs_state* vcs, int version);
 return_t vcs_delete_version(struct vcs_state* vcs, int version);
 return_t vcs_rebase(struct vcs_state* vcs);
 
+return_t vcs_save(struct vcs_state* vcs, const char* path);
+
 void vcs_free(struct vcs_state* vcs);
 

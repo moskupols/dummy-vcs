@@ -24,7 +24,7 @@ static return_t read_parent(int* out, FILE* f)
     return SUCCESS;
 }
 
-static return_t read_parent_file(int* out, const char* fname)
+static return_t read_parent_from_path(int* out, const char* fname)
 {
     assert(fname);
 
@@ -133,7 +133,7 @@ return_t vt_load(struct version_tree* vt, const char* base_fname)
                 continue;
 
             int parent = -1;
-            if (read_parent_file(&parent, file_data.cFileName) == SUCCESS)
+            if (read_parent_from_path(&parent, file_data.cFileName) == SUCCESS)
                 set_parent(vt, child, parent);
         } while (FindNextFile(dir_handle, &file_data));
         FindClose(dir_handle);
@@ -177,6 +177,26 @@ int vt_find_common_ancestor(struct version_tree* vt, int a, int b)
             if (i == j)
                 return i;
     return -1;
+}
+
+static return_t save_deltas(struct version_tree* vt, int version,
+    int parent, const struct delta* delta_a, const struct delta* delta_b)
+{
+    char* fname = string_copy_alloc(vt->base_fname);
+    switch_filename_to_version(&fname, version);
+    FILE* f = fopen(fname, "w");
+    free(fname);
+    if (f == NULL)
+        return ERR_WRITE;
+    print_parent(parent, f);
+
+    return_t ret = SUCCESS;
+    if (delta_a != NULL)
+        ret = delta_print(delta_a, f);
+    if (ret == SUCCESS && delta_b != NULL)
+        ret = delta_print(delta_b, f);
+    fclose(f);
+    return ret;
 }
 
 static return_t load_delta(struct delta* delta, struct version_tree* vt, int version)
@@ -278,16 +298,10 @@ return_t vt_apply_path(char** text, struct version_tree* vt, int start, int dest
 
 static bool file_exists(const char * path)
 {
-    FILE* f = fopen(path, "r");
-    if (f == NULL)
-        return false;
-    fclose(f);
-    return true;
+    return read_parent_from_path(NULL, path) != ERR_NO_SUCH_FILE;
 }
 
-static return_t find_new_version(
-        int* new_version, char** new_filename,
-        int parent, struct version_tree* vt)
+static return_t find_new_version(int* new_version, int parent, struct version_tree* vt)
 {
     char* fname = string_copy_alloc(vt->base_fname);
     for (int v = parent + 1; v < 10000000; ++v)
@@ -297,7 +311,7 @@ static return_t find_new_version(
         if (!file_exists(fname))
         {
             *new_version = v;
-            *new_filename = fname;
+            free(fname);
             return SUCCESS;
         }
     }
@@ -309,26 +323,10 @@ return_t vt_push(
         int* child, struct version_tree* vt, int parent, struct delta* delta)
 {
     int new_version;
-    char* new_filename = NULL;
-    return_t ret = find_new_version(&new_version, &new_filename, parent, vt);
-
-    FILE* new_file = NULL;
-    if (ret == SUCCESS)
-    {
-        new_file = fopen(new_filename, "w");
-        free(new_filename);
-        if (new_file == NULL)
-            ret = ERR_WRITE;
-    }
+    return_t ret = find_new_version(&new_version, parent, vt);
 
     if (ret == SUCCESS)
-        ret = print_parent(parent, new_file);
-        
-    if (ret == SUCCESS)
-        delta_print(delta, new_file);
-
-    if (new_file != NULL)
-        fclose(new_file);
+        ret = save_deltas(vt, new_version, parent, delta, NULL);
 
     if (ret == SUCCESS)
     {
@@ -351,7 +349,7 @@ return_t vt_delete_version(struct version_tree* vt, int deleted)
 
     char* fname = string_copy_alloc(vt->base_fname);
 
-    for (int i = 1; i < vt->capacity; ++i)
+    for (int i = 1; ret == SUCCESS && i < (int)vt->capacity; ++i)
         if (vt_get_parent(vt, i) == deleted)
         {
             struct delta child_delta = DELTA_INIT;
@@ -359,15 +357,8 @@ return_t vt_delete_version(struct version_tree* vt, int deleted)
             assert(ret == SUCCESS); // TODO handle this case
 
             switch_filename_to_version(&fname, i);
-            FILE* f = fopen(fname, "w");
-            assert(f != NULL);
-
-            print_parent(parent, f);
-            delta_print(&deleted_delta, f);
-            delta_print(&child_delta, f);
-
-            fclose(f);
-
+            ret = save_deltas(vt, i, parent, &deleted_delta, &child_delta);
+            assert(ret == SUCCESS);
             set_parent(vt, i, parent);
         }
     set_parent(vt, deleted, -1);
@@ -375,4 +366,61 @@ return_t vt_delete_version(struct version_tree* vt, int deleted)
     DeleteFile(fname);
     free(fname);
     return SUCCESS;
+}
+
+static void traverse_from_root_rec(int** path, size_t* path_len, size_t* path_capacity, struct version_tree* vt, int cur)
+{
+    assert(vt_version_is_known(vt, cur));
+    if (cur == 0)
+        return;
+
+    traverse_from_root_rec(path, path_len, path_capacity, vt, vt_get_parent(vt, cur));
+
+    if (*path_len == *path_capacity)
+    {
+        *path_capacity *= 2;
+        checked_realloc((void**)path, *path_capacity);
+    }
+    (*path)[(*path_len)++] = cur;
+}
+
+static void traverse_from_root(int** path, size_t* path_len, struct version_tree* vt, int version)
+{
+    size_t capacity = 3;
+    *path = checked_malloc(3 * sizeof(int));
+    *path_len = 0;
+    traverse_from_root_rec(path, path_len, &capacity, vt, version);
+}
+
+return_t vt_reverse_from_root(struct version_tree* vt, int version)
+{
+    if (!vt_version_is_known(vt, version))
+        return ERR_INVALID_VERSION;
+
+    size_t path_len;
+    int* path;
+    traverse_from_root(&path, &path_len, vt, version);
+
+    return_t ret = SUCCESS;
+
+    for (size_t i = 0; ret == SUCCESS && i * 2 + 1 < path_len; ++i)
+    {
+        int a = path[i], b = path[path_len - i - 1];
+
+        struct delta delta_a = DELTA_INIT;
+        if (ret == SUCCESS)
+            ret = load_delta(&delta_a, vt, a);
+        struct delta delta_b = DELTA_INIT;
+        if (ret == SUCCESS)
+            ret = load_delta(&delta_b, vt, b);
+
+        delta_reverse(&delta_a);
+        delta_reverse(&delta_b);
+
+        if (ret == SUCCESS)
+            ret = save_deltas(vt, a, vt_get_parent(vt, a), &delta_b, NULL);
+        if (ret == SUCCESS)
+            ret = save_deltas(vt, b, vt_get_parent(vt, b), &delta_a, NULL);
+    }
+    return ret;
 }

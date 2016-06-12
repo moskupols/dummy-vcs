@@ -115,6 +115,32 @@ return_t vcs_delete_version(struct vcs_state* vcs, int version)
     return vt_delete_version(&vcs->vt, version);
 }
 
+return_t vcs_rebase(struct vcs_state* vcs)
+{
+    return_t ret = vt_reverse_from_root(&vcs->vt, vcs->version);
+    if (ret != SUCCESS)
+        return ret;
+
+    ret = vcs_save(vcs, vcs->vt.base_fname);
+    if (ret != SUCCESS)
+        return ret;
+    
+    string_assign_copy(&vcs->working_state, vcs->clean_state);
+    delta_free(&vcs->changes);
+    vcs->version = 0;
+    return SUCCESS;
+}
+
+return_t vcs_save(struct vcs_state* vcs, const char* path)
+{
+    FILE* f = fopen(path, "w");
+    if (f == NULL)
+        return ERR_WRITE;
+    return_t ret = vcs_print(vcs, f);
+    fclose(f);
+    return ret;
+}
+
 void vcs_free(struct vcs_state* vcs)
 {
     free(vcs->clean_state);
