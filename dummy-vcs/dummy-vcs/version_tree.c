@@ -118,9 +118,9 @@ static void set_parent(struct version_tree* vt, int child, int parent)
     vt->parent[child] = parent;
 }
 
-return_t version_tree_load(struct version_tree* vt, const char* base_fname)
+return_t vt_load(struct version_tree* vt, const char* base_fname)
 {
-    version_tree_free(vt);
+    vt_free(vt);
 
     char* fname = string_copy_alloc(base_fname);
     replace_extension(&fname, ".*");
@@ -149,21 +149,21 @@ return_t version_tree_load(struct version_tree* vt, const char* base_fname)
     return SUCCESS;
 }
 
-void version_tree_free(struct version_tree* vt)
+void vt_free(struct version_tree* vt)
 {
     free(vt->base_fname);
     free(vt->parent);
     *vt = version_tree_init;
 }
 
-int version_tree_get_parent(struct version_tree* vt, int child)
+int vt_get_parent(struct version_tree* vt, int child)
 {
     if (child <= 0 || (size_t)child >= vt->capacity)
         return -1;
     return vt->parent[child];
 }
 
-return_t version_tree_checkout(
+return_t vt_checkout(
         char** out, struct version_tree* vt, int version)
 {
     assert(version >= 0);
@@ -171,12 +171,12 @@ return_t version_tree_checkout(
     if (version == 0)
         return read_file(out, vt->base_fname);
 
-    int parent = version_tree_get_parent(vt, version);
+    int parent = vt_get_parent(vt, version);
     if (parent == -1)
         return ERR_INVALID_VERSION;
 
     char* text = NULL;
-    return_t ret = version_tree_checkout(&text, vt, parent);
+    return_t ret = vt_checkout(&text, vt, parent);
 
     char* version_filename = filename_for_version(vt->base_fname, version);
     FILE* f = fopen(version_filename, "r");
@@ -234,7 +234,7 @@ static return_t find_new_version(
     return ERR_VERSIONS_LIMIT;
 }
 
-return_t version_tree_push(
+return_t vt_push(
         int* child, struct version_tree* vt, int parent, struct delta* delta)
 {
     int new_version;

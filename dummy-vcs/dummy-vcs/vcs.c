@@ -16,10 +16,10 @@ return_t vcs_open(struct vcs_state* vcs, const char* fname, int version)
     struct vcs_state new_vcs = VCS_INIT;
 
     new_vcs.version = version;
-    return_t ret = version_tree_load(&new_vcs.vt, fname);
+    return_t ret = vt_load(&new_vcs.vt, fname);
 
     if (ret == SUCCESS)
-        ret = version_tree_checkout(&new_vcs.clean_state, &new_vcs.vt, version);
+        ret = vt_checkout(&new_vcs.clean_state, &new_vcs.vt, version);
 
     if (ret == SUCCESS)
     {
@@ -87,7 +87,7 @@ return_t vcs_push(struct vcs_state* vcs)
 {
     assert(vcs != NULL);
 
-    return_t ret = version_tree_push(
+    return_t ret = vt_push(
             &vcs->version, &vcs->vt, vcs->version, &vcs->changes);
 
     if (ret == SUCCESS)
@@ -104,7 +104,7 @@ void vcs_free(struct vcs_state* vcs)
     free(vcs->clean_state);
     free(vcs->working_state);
     delta_free(&vcs->changes);
-    version_tree_free(&vcs->vt);
+    vt_free(&vcs->vt);
     *vcs = vcs_init;
 }
 
