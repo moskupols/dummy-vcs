@@ -421,6 +421,12 @@ return_t vt_reverse_from_root(struct version_tree* vt, int version)
             ret = save_deltas(vt, a, vt_get_parent(vt, a), &delta_b, NULL);
         if (ret == SUCCESS)
             ret = save_deltas(vt, b, vt_get_parent(vt, b), &delta_a, NULL);
+
+        delta_free(&delta_a);
+        delta_free(&delta_b);
     }
+
+    free(path);
+
     return ret;
 }

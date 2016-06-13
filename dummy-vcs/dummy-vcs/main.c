@@ -108,6 +108,7 @@ int main()
             scanf("%d %d ", &i, &j);
             read_line(&data, stdin);
             handle_result(vcs_edit(&vcs, i, j, data));
+            free(data);
         }
         else if (strcmp(command_buf, "add") == 0)
         {
@@ -116,6 +117,7 @@ int main()
             scanf("%d ", &i);
             read_line(&data, stdin);
             handle_result(vcs_add(&vcs, i, data));
+            free(data);
         }
         else if (strcmp(command_buf, "remove") == 0)
         {

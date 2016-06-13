@@ -13,7 +13,7 @@ struct version_tree
 
     // Массив предков: parent[a] содержит родительскую версию версии a,
     // либо -1, если версия a отстутствует или a=0.
-    // Вкупе с capacity работает аналогично std::vector<int>
+    // Вкупе с capacity выделяется аналогично std::vector<int>
     int* parent;
     size_t capacity;
 };
