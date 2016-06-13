@@ -76,9 +76,8 @@ return_t vcs_remove(struct vcs_state* vcs, size_t i, size_t j)
 
     if (check_substr(strlen(vcs->working_state), i, j-i, NULL))
     {
-        struct substr substr = string_substr(vcs->working_state, i, j-i);
-        delta_append(&vcs->changes,
-                delta_line_new(i, substr_to_string_alloc(&substr), DELTA_ERASE));
+        char* substr = string_substr_alloc(vcs->working_state, i, j-i);
+        delta_append(&vcs->changes, delta_line_new(i, substr, DELTA_ERASE));
     }
     return string_erase(&vcs->working_state, i, j - i);
 }

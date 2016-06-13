@@ -10,14 +10,6 @@
 
 #define FICTIVE_LEN ((size_t)-1)
 
-// Структура для описания подстроки.
-struct substr
-{
-    const char* str;
-    size_t pos;
-    size_t len;
-};
-
 // Убедиться, что на строку выделено достаточно места для size символов
 void string_reserve(char** s, size_t size);
 
@@ -35,14 +27,10 @@ void string_assign_copy(char** dest, const char* source);
 // по этому адресу.
 bool check_substr(size_t old_len, size_t pos, size_t new_len, size_t* new_len_p);
 
-// Сконструировать подстроку
-struct substr string_substr(const char* string, size_t pos, size_t len);
+// Выделить копию подстроки
+char* string_substr_alloc(const char* string, size_t pos, size_t len);
 
 // Вставить одну строку внутрь другой, при необходимости перевыделив память
 return_t string_insert(char** into, size_t pos, const char* what);
 // Удалить подстроку
 return_t string_erase(char** from, size_t pos, size_t len);
-
-// Выделить память и скопировать туда содержимое подстроки
-char* substr_to_string_alloc(const struct substr* sub);
-

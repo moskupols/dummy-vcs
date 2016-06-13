@@ -60,11 +60,10 @@ bool check_substr(
     return true;
 }
 
-struct substr string_substr(const char* string, size_t pos, size_t len)
+char* string_substr_alloc(const char* str, size_t pos, size_t len)
 {
-    bool valid_substr = check_substr(strlen(string), pos, len, &len);
-    assert(valid_substr);
-    return (struct substr){string, pos, len};
+    assert(check_substr(strlen(str), pos, len, &len));
+    return string_copy_n_alloc(str + pos, len);
 }
 
 return_t string_insert(char** into, size_t pos, const char* what)
@@ -101,18 +100,3 @@ return_t string_erase(char** from, size_t pos, size_t len)
 
     return SUCCESS;
 }
-
-
-
-
-static const char* substr_begin(const struct substr* substr)
-{
-    return substr->str + substr->pos;
-}
-
-char* substr_to_string_alloc(const struct substr* sub)
-{
-    return string_copy_n_alloc(substr_begin(sub), sub->len);
-}
-
-
