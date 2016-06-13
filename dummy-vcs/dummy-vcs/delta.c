@@ -17,11 +17,16 @@ struct delta_line delta_line_new(size_t pos, char* text, delta_line_type_t type)
     return ret;
 }
 
+// Аналог std::vector::push_back. Это единственное место, где перевыделяется
+// память под изменения.
 void delta_append(struct delta* delta, struct delta_line line)
 {
-    if (delta->len == delta->capacity)
+    if (delta->len == delta->capacity) // Занята вся выделенная память
     {
-        delta->capacity = max(3, delta->capacity * 2);
+        if (delta->capacity == 0) // Это будет первое изменение
+            delta->capacity = 4;  // выделим сначала немного памяти
+        else
+            delta->capacity *= 2; // Это уже не первое перевыделение, увеличиваем экспоненциально
         checked_realloc(
                 (void**)&delta->lines,
                 delta->capacity * sizeof(struct delta_line));
@@ -32,21 +37,21 @@ void delta_append(struct delta* delta, struct delta_line line)
 return_t delta_line_load(struct delta_line* out, FILE* stream)
 {
     char type;
-    if (fscanf(stream, "%c ", &type) <= 0)
+    if (fscanf(stream, "%c ", &type) <= 0) // Читаем тип изменения
         return ERR_READ;
 
     if (type != DELTA_ADD && type != DELTA_ERASE)
         return ERR_INVALID_DELTA;
 
-    size_t pos = 0;
-    if (fscanf(stream, "%Iu ", &pos) <= 0)
+    size_t pos;
+    if (fscanf(stream, "%Iu", &pos) <= 0) // Читаем позицию начала изменения
         return ERR_INVALID_DELTA;
 
     out->type = type;
     out->pos = pos;
-    fgetc(stream); // skip one space
+    fgetc(stream); // Пропуск пробела
     return
-        SUCCESS == read_line(&out->text, stream)
+        SUCCESS == read_line(&out->text, stream) // Читаем текст изменения до конца строки
         ? SUCCESS
         : ERR_INVALID_DELTA;
 }
@@ -60,18 +65,20 @@ return_t delta_load(struct delta* out, FILE* stream)
     struct delta_line next_line = DELTA_LINE_INIT;
 
     return_t ret;
+    // Читаем изменения построчно, пока получается
     while ((ret = delta_line_load(&next_line, stream)) == SUCCESS)
         delta_append(&new_delta, next_line);
 
+    // Если не прочитался даже тип, но просто потому что файл закончился, то так и должно быть
     if (ret == ERR_READ && feof(stream))
         ret = SUCCESS;
 
-    if (ret == SUCCESS)
+    if (ret == SUCCESS) // Всё хорошо, подменяем дельту по указанному адресу
     {
         delta_free(out);
         *out = new_delta;
     }
-    else
+    else // иначе освобождаем то, что успели прочитать, по указанному адресу не трогаем
         delta_free(&new_delta);
 
     return ret;
@@ -110,12 +117,12 @@ return_t delta_print(const struct delta* delta, FILE* stream)
 
 void delta_reverse(struct delta* delta)
 {
-    for (size_t i = 0; i < delta->len; ++i)
+    for (size_t i = 0; i < delta->len; ++i) // Заменяем типы на обратные
     {
         struct delta_line* line = delta->lines + i;
-        line->type = line->type == DELTA_ADD ? DELTA_ERASE : DELTA_ADD;
+        line->type = (line->type == DELTA_ADD ? DELTA_ERASE : DELTA_ADD);
     }
-    for (size_t i = 0; i * 2 + 1 < delta->len; ++i)
+    for (size_t i = 0; i * 2 + 1 < delta->len; ++i) // Разворачиваем порядок изменений
     {
         struct delta_line temp = delta->lines[i];
         delta->lines[i] = delta->lines[delta->len - i - 1];

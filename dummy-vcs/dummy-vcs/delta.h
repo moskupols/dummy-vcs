@@ -14,14 +14,18 @@ typedef char delta_line_type_t;
 // проделать в обратную сторону.
 struct delta_line
 {
-    size_t pos;
+    size_t pos; // ѕозици€ начала вставки или удалени€
     char* text;
 
-    delta_line_type_t type;
+    delta_line_type_t type; // ќб€зан быть либо '+', либо '-'.
 };
+// Ётот макрос дл€ инициализации новой переменной. ¬ type устанавливаетс€ '?', чтобы нельз€ было
+// забыть установить тип до сохранени€ (иначе программа упадЄт по assert при сохранении)
 #define DELTA_LINE_INIT { 0, NULL, '?' }
+//  онстанта дл€ присвоени€ значени€ по умолчанию заново
 static const struct delta_line delta_line_init = DELTA_LINE_INIT;
 
+// ѕросто упаковать три значени€ в структуру delta_line, нова€ строка не выдел€етс€
 struct delta_line delta_line_new( size_t pos, char* text, delta_line_type_t type );
 
 // —труктура delta описывает последовательность изменений текста. ѕо сути представл€ет из
@@ -29,10 +33,12 @@ struct delta_line delta_line_new( size_t pos, char* text, delta_line_type_t type
 struct delta
 {
     struct delta_line* lines;
-    size_t len;
-    size_t capacity;
+    size_t len;      //  оличество добавленных изменений
+    size_t capacity; // Ќа сколько изменений выделено пам€ти
 };
+// ƒл€ инициализации новой переменной типа struct delta
 #define DELTA_INIT { NULL, 0, 0 }
+//  онстанта дл€ присвоени€ значени€ по умолчанию заново
 static const struct delta delta_init = DELTA_INIT;
 
 // ƒобавить одно изменение в конец последовательности. јналог std::vector::push_back.
