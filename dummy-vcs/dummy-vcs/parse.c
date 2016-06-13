@@ -11,8 +11,8 @@ return_t read_until(char** out, FILE* stream, int stop_char)
 {
     assert(out != NULL);
 
-    size_t used = 0;
-    size_t capacity = 8;
+    size_t used = 0; // Сколько символов прочитано и записано
+    size_t capacity = 8; // Сколько выделено памяти
 
     char* buf = checked_malloc(capacity);
 
@@ -20,7 +20,8 @@ return_t read_until(char** out, FILE* stream, int stop_char)
     while ((c = fgetc(stream)) != stop_char && !feof(stream) && !ferror(stream))
     {
         buf[used++] = c;
-        if (used >= capacity)
+        if (used >= capacity) // Если записано столько символов, сколько выделено памяти, то уже надо
+                              // выделить ещё, потому что мы собираемся ещё дописать '\0'
         {
             capacity *= 2;
             checked_realloc((void**)&buf, capacity);
