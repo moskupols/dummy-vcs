@@ -7,18 +7,14 @@
 
 void string_reserve(char** s, size_t new_len)
 {
-    if (s == NULL)
-    {
-        *s = checked_calloc(new_len + 1, sizeof(char));
-        return;
-    }
+    assert(*s != NULL);
 
     size_t old_len = strlen(*s);
-    if (old_len >= new_len)
+    if (old_len >= new_len) // строка и так не короче
         return;
 
     checked_realloc((void**)s, new_len + 1);
-    memset(*s + old_len, 0, new_len - old_len + 1);
+    memset(*s + old_len, 0, new_len - old_len + 1); // установим нули везде в новой памяти
 }
 
 char* string_copy_alloc(const char* source)
@@ -74,13 +70,13 @@ return_t string_insert(char** into, size_t pos, const char* what)
     if (pos > old_len)
         return ERR_INVALID_RANGE;
 
-    string_reserve(into, old_len + add_len);
+    string_reserve(into, old_len + add_len); // убедимся, что памяти достаточно
 
     size_t suffix_len = old_len - pos;
     char* suffix = *into + pos;
 
-    memmove(suffix + add_len, suffix, suffix_len);
-    memcpy(suffix, what, add_len);
+    memmove(suffix + add_len, suffix, suffix_len); // сдвинем суффикс вправо
+    memcpy(suffix, what, add_len); // скопируем what туда, где раньше начинался суффикс
     (*into)[old_len + add_len] = '\0';
 
     return SUCCESS;
@@ -95,7 +91,7 @@ return_t string_erase(char** from, size_t pos, size_t len)
     char* erased = *from + pos;
     size_t suffix_len = old_len - pos - len;
 
-    memmove(erased, erased + len, suffix_len);
+    memmove(erased, erased + len, suffix_len); // Сдвинем суффикс туда, где раньше была удалённая подстрока
     (*from)[old_len - len] = '\0';
 
     return SUCCESS;
