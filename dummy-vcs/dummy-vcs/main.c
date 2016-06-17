@@ -1081,7 +1081,7 @@ return_t vcs_delete_version(struct vcs_state* vcs, int version)
 {
     if (!vcs_is_open(vcs))
         return ERR_NOT_OPEN;
-    if (version == 0)
+    if (version == 0 || !vt_version_is_known(&vcs->vt, version))
         return ERR_INVALID_VERSION;
     if (version == vcs->version)
         return ERR_DELETE_CURRENT;
