@@ -894,7 +894,7 @@ return_t swap_children(struct version_tree* vt, int a, int b, int but)
 
 // Старый порядок версий: 0-1-2-3-4
 // Новый порядок версий:  0-3-2-1-4 , но 0 и 4 поменялись состояниями
-// Новое состояние 0 запишется в vcs_rebase
+// Новое состояние 0 не записывается, это будет сделано в vcs_rebase
 return_t vt_reverse_on_path_to_root(struct version_tree* vt, int version)
 {
     if (!vt_version_is_known(vt, version))
@@ -925,6 +925,8 @@ return_t vt_reverse_on_path_to_root(struct version_tree* vt, int version)
         delta_reverse(&prev_delta);
         ret = save_deltas(vt->base_fname, path[path_len - 1], parent, &prev_delta, NULL);
     }
+    if (ret == SUCCESS)
+        ret = swap_children(vt, path[0], path[path_len - 1], path[1]);
 
     delta_free(&prev_delta);
     free(path);
