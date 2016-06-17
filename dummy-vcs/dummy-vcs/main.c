@@ -37,7 +37,13 @@ typedef enum //ошибки
     ERR_WRITE,
 
     // Не удалось найти свободный номер версии
-    ERR_VERSIONS_LIMIT
+    ERR_VERSIONS_LIMIT,
+
+    // Не открыто никакого файла
+    ERR_NOT_OPEN,
+
+    // Попытка удалить текущую версию
+    ERR_DELETE_CURRENT
 } return_t;
 
 const char* error_description(return_t r)
@@ -51,6 +57,8 @@ const char* error_description(return_t r)
         case ERR_READ: return "Error while reading file";
         case ERR_WRITE: return "Error while writing changes";
         case ERR_VERSIONS_LIMIT: return "Versions limit exceeded";
+        case ERR_NOT_OPEN: return "No file is open at the moment. Try `open a.txt'.";
+        case ERR_DELETE_CURRENT: return "Couldn't delete current version. Use `pull 0' to switch to root version.";
         default: return "Error";
     }
 }
@@ -910,7 +918,7 @@ struct vcs_state {
 #define VCS_INIT { NULL, NULL, DELTA_INIT, VERSION_TREE_INIT, -1 }
 const struct vcs_state vcs_init = VCS_INIT;
 
-// Все функции (кроме vcs_free) здесь прямо соответствуют командам нашей системы контроля версий.
+// Все функции (кроме vcs_free и vcs_is_open) здесь прямо соответствуют командам нашей системы контроля версий.
 
 void vcs_free(struct vcs_state* vcs)
 {
@@ -919,6 +927,11 @@ void vcs_free(struct vcs_state* vcs)
     delta_free(&vcs->changes);
     vt_free(&vcs->vt);
     *vcs = vcs_init;
+}
+
+bool vcs_is_open(const struct vcs_state* vcs)
+{
+    return vcs->working_state != NULL;
 }
 
 return_t vcs_open(struct vcs_state* vcs, const char* fname, int version)
@@ -947,12 +960,16 @@ return_t vcs_open(struct vcs_state* vcs, const char* fname, int version)
 
 return_t vcs_print(const struct vcs_state* vcs, FILE* stream)
 {
+    if (!vcs_is_open(vcs))
+        return ERR_NOT_OPEN;
     return fputs(vcs->working_state, stream) >= 0 ? SUCCESS : ERR_WRITE;
 }
 
 return_t vcs_add(struct vcs_state* vcs, size_t i, const char* data)
 {
     assert(vcs != NULL);
+    if (!vcs_is_open(vcs))
+        return ERR_NOT_OPEN;
 
     return_t ret = string_insert(&vcs->working_state, i, data);
     if (ret == SUCCESS)
@@ -964,6 +981,8 @@ return_t vcs_add(struct vcs_state* vcs, size_t i, const char* data)
 return_t vcs_remove(struct vcs_state* vcs, size_t i, size_t j)
 {
     assert(vcs != NULL);
+    if (!vcs_is_open(vcs))
+        return ERR_NOT_OPEN;
 
     if (check_substr(strlen(vcs->working_state), i, j - i, NULL)) {
         char* substr = string_substr_alloc(vcs->working_state, i, j - i);
@@ -976,6 +995,8 @@ return_t vcs_edit(struct vcs_state* vcs, size_t i, size_t j, const char* data)
 {
     assert(vcs != NULL);
     assert(data != NULL);
+    if (!vcs_is_open(vcs))
+        return ERR_NOT_OPEN;
 
     size_t len = j - i;
     if (i >= j || !check_substr(strlen(vcs->working_state), i, len, NULL))
@@ -992,6 +1013,8 @@ return_t vcs_edit(struct vcs_state* vcs, size_t i, size_t j, const char* data)
 return_t vcs_push(struct vcs_state* vcs)
 {
     assert(vcs != NULL);
+    if (!vcs_is_open(vcs))
+        return ERR_NOT_OPEN;
 
     return_t ret = vt_push(&vcs->version, &vcs->vt, vcs->version, &vcs->changes);
 
@@ -1005,6 +1028,9 @@ return_t vcs_push(struct vcs_state* vcs)
 
 return_t vcs_pull(struct vcs_state* vcs, int version)
 {
+    if (!vcs_is_open(vcs))
+        return ERR_NOT_OPEN;
+
     return_t ret = vt_apply_path(&vcs->clean_state, &vcs->vt, vcs->version, version);
     if (ret == SUCCESS) {
         string_assign_copy(&vcs->working_state, vcs->clean_state);
@@ -1016,11 +1042,20 @@ return_t vcs_pull(struct vcs_state* vcs, int version)
 
 return_t vcs_delete_version(struct vcs_state* vcs, int version)
 {
+    if (!vcs_is_open(vcs))
+        return ERR_NOT_OPEN;
+    if (version == 0)
+        return ERR_INVALID_VERSION;
+    if (version == vcs->version)
+        return ERR_DELETE_CURRENT;
     return vt_delete_version(&vcs->vt, version);
 }
 
 return_t vcs_save(struct vcs_state* vcs, const char* path)
 {
+    if (!vcs_is_open(vcs))
+        return ERR_NOT_OPEN;
+
     FILE* f = fopen(path, "w");
     if (f == NULL)
         return ERR_WRITE;
@@ -1031,6 +1066,9 @@ return_t vcs_save(struct vcs_state* vcs, const char* path)
 
 return_t vcs_rebase(struct vcs_state* vcs)
 {
+    if (!vcs_is_open(vcs))
+        return ERR_NOT_OPEN;
+
     return_t ret = vt_reverse_from_root(&vcs->vt, vcs->version);
     if (ret != SUCCESS)
         return ret;
