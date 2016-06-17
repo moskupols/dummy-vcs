@@ -206,6 +206,16 @@ return_t string_erase(char** from, size_t pos, size_t len)
 
 /*----------------------------------------------------------------PARSE------------------------------------------------*/
 
+// Открыть файл, проверить, что получилось
+return_t open_file(FILE** out, const char* fname, const char* params)
+{
+    assert(fname);
+    *out = fopen(fname, params);
+    if (*out == NULL)
+        return ERR_NO_SUCH_FILE;
+    return SUCCESS;
+}
+
 // Читать поток, пока он не кончится, либо пока не встретится символ stop_char
 // Аналог std::getline(std::istream&, std::string&, int)
 return_t read_until(char** out, FILE* stream, int stop_char)
@@ -236,17 +246,16 @@ return_t read_until(char** out, FILE* stream, int stop_char)
 #define read_line(s, f) read_until(s, f, '\n')
 #define read_all(s, f) read_until(s, f, EOF)
 
-// Прочесть файл, лежащий по данному пути, в одну строку.
 return_t read_file(char** out, const char* path)
 {
-    FILE* f = fopen(path, "r");
-    if (f == NULL)
-        return ERR_NO_SUCH_FILE;
-    return_t ret = read_all(out, f);
-    fclose(f);
+    FILE* f = NULL;
+    return_t ret = open_file(&f, path, "r");
+    if (ret == SUCCESS)
+        ret = read_all(out, f);
+    if (f != NULL)
+        fclose(f);
     return ret;
 }
-
 
 /*----------------------------------------------------------------DELTA------------------------------------------------*/
 typedef char delta_line_type_t;
@@ -464,17 +473,14 @@ return_t read_parent(int* out, FILE* f)
     return SUCCESS;
 }
 
-// Прочитать номер родительской версии по данному пути
-return_t read_parent_from_path(int* out, const char* fname)
+return_t read_parent_from_path(int* parent, const char* fname)
 {
-    assert(fname);
-
-    FILE* f = fopen(fname, "r");
-    if (f == NULL)
-        return ERR_NO_SUCH_FILE;
-
-    return_t ret = read_parent(out, f);
-    fclose(f);
+    FILE* f = NULL;
+    return_t ret = open_file(&f, fname, "r");
+    if (ret == SUCCESS)
+        ret = read_parent(parent, f);
+    if (f != NULL)
+        fclose(f);
     return ret;
 }
 
@@ -543,6 +549,29 @@ void switch_filename_to_version(char** fname, int version)
     replace_extension(fname, buf);
 }
 
+return_t open_version_file(FILE** out, const char* base_fname, int version, const char* params)
+{
+    char* version_fname = string_copy_alloc(base_fname);
+    switch_filename_to_version(&version_fname, version);
+    return_t ret = open_file(out, version_fname, params);
+    free(version_fname);
+    return ret;
+}
+
+// Получить номер родительской версии или -1, если её нет.
+int vt_get_parent(struct version_tree* vt, int child)
+{
+    if (child <= 0 || (size_t)child >= vt->capacity)
+        return -1;
+    return vt->parent[child];
+}
+
+// Предикат наличия в дереве конкретной версии
+bool vt_version_is_known(struct version_tree* vt, int version)
+{
+    return version == 0 || vt_get_parent(vt, version) > -1;
+}
+
 // Установить родителя в дереве, при необходимости перевыделив массив родителей
 void set_parent(struct version_tree* vt, int child, int parent)
 {
@@ -559,6 +588,65 @@ void set_parent(struct version_tree* vt, int child, int parent)
         memset(vt->parent + old_capacity, -1, (vt->capacity - old_capacity) * sizeof(int));
     }
     vt->parent[child] = parent;
+}
+
+// Сохранить одну или две дельты (больше не бывает надо) в файл, соответствующий версии version
+return_t save_deltas(const char* base_fname, int version,
+    int parent, const struct delta* delta_a, const struct delta* delta_b)
+{
+    FILE* f = NULL;
+    return_t ret = open_version_file(&f, base_fname, version, "w");
+    if (ret == SUCCESS)
+        ret = print_parent(parent, f);
+    if (ret == SUCCESS && delta_a != NULL)
+        ret = delta_print(delta_a, f);
+    if (ret == SUCCESS && delta_b != NULL)
+        ret = delta_print(delta_b, f);
+    fclose(f);
+    return ret;
+}
+
+// Загрузить дельту, соответствующую одной конкретной версии
+return_t load_delta(struct delta* delta, struct version_tree* vt, int version)
+{
+    assert(vt_version_is_known(vt, version));
+
+    FILE* f = NULL;
+    return_t ret = open_version_file(&f, vt->base_fname, version, "r");
+
+    if (ret == SUCCESS)
+        ret = read_parent(NULL, f);
+
+    if (ret == SUCCESS)
+        ret = delta_load(delta, f);
+
+    if (f != NULL)
+        fclose(f);
+
+    return ret;
+}
+
+// Перезаписать родителя на диске
+return_t rewrite_parent(struct version_tree* vt, int child, int new_parent)
+{
+    assert(vt_version_is_known(vt, child));
+    assert(vt_version_is_known(vt, new_parent));
+
+    struct delta delta = DELTA_INIT;
+    return_t ret = load_delta(&delta, vt, child);
+
+    FILE* f = NULL;
+    if (ret == SUCCESS)
+        ret = open_version_file(&f, vt->base_fname, child, "w");
+    if (ret == SUCCESS)
+        ret = print_parent(new_parent, f);
+    if (ret == SUCCESS)
+        ret = delta_print(&delta, f);
+    if (ret == SUCCESS)
+        set_parent(vt, child, new_parent);
+    if (f != NULL)
+        fclose(f);
+    return ret;
 }
 
 // Освободить и очистить структуру.
@@ -599,20 +687,6 @@ return_t vt_load(struct version_tree* vt, const char* base_fname)
     return SUCCESS;
 }
 
-// Получить номер родительской версии или -1, если её нет.
-int vt_get_parent(struct version_tree* vt, int child)
-{
-    if (child <= 0 || (size_t)child >= vt->capacity)
-        return -1;
-    return vt->parent[child];
-}
-
-// Предикат наличия в дереве конкретной версии
-bool vt_version_is_known(struct version_tree* vt, int version)
-{
-    return version == 0 || vt_get_parent(vt, version) > -1;
-}
-
 // Нахождение ближайшего общего предка двух вершин, нужно для pull
 int vt_find_common_ancestor(struct version_tree* vt, int a, int b)
 {
@@ -629,50 +703,6 @@ int vt_find_common_ancestor(struct version_tree* vt, int a, int b)
     return -1;
 }
 
-// Сохранить одну или две дельты (больше не бывает надо) в файл, соответствующий версии version
-return_t save_deltas(const char* base_fname, int version,
-    int parent, const struct delta* delta_a, const struct delta* delta_b)
-{
-    char* fname = string_copy_alloc(base_fname);
-    switch_filename_to_version(&fname, version);
-    FILE* f = fopen(fname, "w");
-    free(fname);
-    if (f == NULL)
-        return ERR_WRITE;
-    print_parent(parent, f);
-
-    return_t ret = SUCCESS;
-    if (delta_a != NULL)
-        ret = delta_print(delta_a, f);
-    if (ret == SUCCESS && delta_b != NULL)
-        ret = delta_print(delta_b, f);
-    fclose(f);
-    return ret;
-}
-
-// Загрузить дельту, соответствующую одной конкретной версии
-return_t load_delta(struct delta* delta, struct version_tree* vt, int version)
-{
-    assert(vt_version_is_known(vt, version));
-
-    char* version_filename = string_copy_alloc(vt->base_fname);
-    switch_filename_to_version(&version_filename, version);
-    FILE* f = fopen(version_filename, "r");
-    free(version_filename);
-
-    return_t ret = f == NULL ? ret = ERR_NO_SUCH_FILE : SUCCESS;
-
-    if (ret == SUCCESS)
-        ret = read_parent(NULL, f);
-
-    if (ret == SUCCESS)
-        ret = delta_load(delta, f);
-
-    if (f != NULL)
-        fclose(f);
-
-    return ret;
-}
 
 // Применить к тексту изменения на пути вверх от descendant к ancestor.
 // Так как идём вверх, изменения по сути откатываются.
@@ -846,6 +876,20 @@ void traverse_from_root(int** path, size_t* path_len, struct version_tree* vt, i
     *path = (int*)checked_malloc(3 * sizeof(int));
     *path_len = 0;
     traverse_from_root_rec(path, path_len, &capacity, vt, version);
+}
+
+return_t swap_children(struct version_tree* vt, int a, int b, int but)
+{
+    return_t ret = SUCCESS;
+    for (int i = 1; ret == SUCCESS && i < vt->capacity; ++i) {
+        if (i == but)
+            continue;
+        if (vt->parent[i] == a)
+            ret = rewrite_parent(vt, i, b);
+        else if (vt->parent[i] == b)
+            ret = rewrite_parent(vt, i, a);
+    }
+    return ret;
 }
 
 // Старый порядок версий: 0-1-2-3-4
