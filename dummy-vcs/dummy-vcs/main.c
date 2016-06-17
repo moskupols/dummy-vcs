@@ -11,6 +11,8 @@
 #include <ctype.h>
 #include <errno.h>
 
+#include <vld.h>
+
 /*----------------------------------------------------------------ERRORS------------------------------------------------*/
 typedef enum //ошибки
 {
@@ -838,19 +840,22 @@ return_t vt_delete_version(struct version_tree* vt, int deleted)
 
     for (int i = 1; ret == SUCCESS && i < (int)vt->capacity; ++i)
         if (vt_get_parent(vt, i) == deleted) {
-        struct delta child_delta = DELTA_INIT;
-        ret = load_delta(&child_delta, vt, i);
-        assert(ret == SUCCESS);
+            struct delta child_delta = DELTA_INIT;
+            ret = load_delta(&child_delta, vt, i);
+            assert(ret == SUCCESS);
 
-        switch_filename_to_version(&fname, i);
-        ret = save_deltas(vt->base_fname, i, parent, &deleted_delta, &child_delta);
-        assert(ret == SUCCESS);
-        set_parent(vt, i, parent);
+            switch_filename_to_version(&fname, i);
+            ret = save_deltas(vt->base_fname, i, parent, &deleted_delta, &child_delta);
+            delta_free(&child_delta);
+
+            assert(ret == SUCCESS);
+            set_parent(vt, i, parent);
         }
     set_parent(vt, deleted, -1);
     switch_filename_to_version(&fname, deleted);
     DeleteFileA(fname);
     free(fname);
+    delta_free(&deleted_delta);
     return SUCCESS;
 }
 
