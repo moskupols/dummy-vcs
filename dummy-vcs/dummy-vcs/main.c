@@ -630,10 +630,10 @@ int vt_find_common_ancestor(struct version_tree* vt, int a, int b)
 }
 
 // Сохранить одну или две дельты (больше не бывает надо) в файл, соответствующий версии version
-return_t save_deltas(struct version_tree* vt, int version,
+return_t save_deltas(const char* base_fname, int version,
     int parent, const struct delta* delta_a, const struct delta* delta_b)
 {
-    char* fname = string_copy_alloc(vt->base_fname);
+    char* fname = string_copy_alloc(base_fname);
     switch_filename_to_version(&fname, version);
     FILE* f = fopen(fname, "w");
     free(fname);
@@ -783,7 +783,7 @@ return_t vt_push(int* child, struct version_tree* vt, int parent, struct delta* 
     return_t ret = find_new_version(&new_version, parent, vt);
 
     if (ret == SUCCESS)
-        ret = save_deltas(vt, new_version, parent, delta, NULL);
+        ret = save_deltas(vt->base_fname, new_version, parent, delta, NULL);
 
     if (ret == SUCCESS) {
         *child = new_version;
@@ -813,7 +813,7 @@ return_t vt_delete_version(struct version_tree* vt, int deleted)
         assert(ret == SUCCESS);
 
         switch_filename_to_version(&fname, i);
-        ret = save_deltas(vt, i, parent, &deleted_delta, &child_delta);
+        ret = save_deltas(vt->base_fname, i, parent, &deleted_delta, &child_delta);
         assert(ret == SUCCESS);
         set_parent(vt, i, parent);
         }
@@ -829,14 +829,12 @@ void traverse_from_root_rec(int** path, size_t* path_len, size_t* path_capacity,
 {
     assert(vt_version_is_known(vt, cur));
 
-    if (cur == 0)
-        return;
-
-    traverse_from_root_rec(path, path_len, path_capacity, vt, vt_get_parent(vt, cur));
+    if (cur != 0)
+        traverse_from_root_rec(path, path_len, path_capacity, vt, vt_get_parent(vt, cur));
 
     if (*path_len == *path_capacity) {
         *path_capacity *= 2;
-        checked_realloc((void**)path, *path_capacity);
+        checked_realloc((void**)path, *path_capacity * sizeof(int));
     }
     (*path)[(*path_len)++] = cur;
 }
@@ -850,48 +848,41 @@ void traverse_from_root(int** path, size_t* path_len, struct version_tree* vt, i
     traverse_from_root_rec(path, path_len, &capacity, vt, version);
 }
 
-// Разворот изменений на пути от корня до вершины, нужно для rebase.
-return_t vt_reverse_from_root(struct version_tree* vt, int version)
+// Старый порядок версий: 0-1-2-3-4
+// Новый порядок версий:  0-3-2-1-4 , но 0 и 4 поменялись состояниями
+// Новое состояние 0 запишется в vcs_rebase
+return_t vt_reverse_on_path_to_root(struct version_tree* vt, int version)
 {
     if (!vt_version_is_known(vt, version))
         return ERR_INVALID_VERSION;
+    if (version == 0)
+        return SUCCESS;
 
     size_t path_len;
     int* path;
     traverse_from_root(&path, &path_len, vt, version);
 
-    return_t ret = SUCCESS;
+    struct delta prev_delta = DELTA_INIT;
+    return_t ret = load_delta(&prev_delta, vt, path[path_len - 1]);
+    int parent = 0;
 
-    for (size_t i = 0; ret == SUCCESS && i * 2 + 1 < path_len; ++i) {
-        int a = path[i], b = path[path_len - i - 1];
-
-        struct delta delta_a = DELTA_INIT;
-        if (ret == SUCCESS)
-            ret = load_delta(&delta_a, vt, a);
-        struct delta delta_b = DELTA_INIT;
-        if (ret == SUCCESS)
-            ret = load_delta(&delta_b, vt, b);
-
-        delta_reverse(&delta_a);
-        delta_reverse(&delta_b);
-
-        if (ret == SUCCESS)
-            ret = save_deltas(vt, a, vt_get_parent(vt, a), &delta_b, NULL);
-        if (ret == SUCCESS)
-            ret = save_deltas(vt, b, vt_get_parent(vt, b), &delta_a, NULL);
-
-        delta_free(&delta_a);
-        delta_free(&delta_b);
+    for (size_t i = path_len - 2; ret == SUCCESS && i >= 1; --i) { // Сохраняем 3-2-1
+        struct delta next_delta = DELTA_INIT;
+        ret = load_delta(&next_delta, vt, path[i]);
+        if (ret == SUCCESS) {
+            delta_reverse(&prev_delta);
+            ret = save_deltas(vt->base_fname, path[i], parent, &prev_delta, NULL);
+        }
+        delta_free(&prev_delta);
+        prev_delta = next_delta;
+        parent = path[i];
     }
-    if (ret == SUCCESS && path_len % 2 == 1) {
-        int mid = path[path_len / 2];
-        struct delta delta_mid = DELTA_INIT;
-        ret = load_delta(&delta_mid, vt, mid);
-        delta_reverse(&delta_mid);
-        if (ret == SUCCESS)
-            ret = save_deltas(vt, mid, vt_get_parent(vt, mid), &delta_mid, NULL);
+    if (ret == SUCCESS) { // Сохраняем 4
+        delta_reverse(&prev_delta);
+        ret = save_deltas(vt->base_fname, path[path_len - 1], parent, &prev_delta, NULL);
     }
 
+    delta_free(&prev_delta);
     free(path);
 
     return ret;
@@ -1069,7 +1060,7 @@ return_t vcs_rebase(struct vcs_state* vcs)
     if (!vcs_is_open(vcs))
         return ERR_NOT_OPEN;
 
-    return_t ret = vt_reverse_from_root(&vcs->vt, vcs->version);
+    return_t ret = vt_reverse_on_path_to_root(&vcs->vt, vcs->version);
     if (ret != SUCCESS)
         return ret;
 
