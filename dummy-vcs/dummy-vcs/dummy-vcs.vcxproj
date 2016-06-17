@@ -66,23 +66,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="delta.h" />
-    <ClInclude Include="error.h" />
-    <ClInclude Include="my_string.h" />
-    <ClInclude Include="parse.h" />
-    <ClInclude Include="utils.h" />
-    <ClInclude Include="vcs.h" />
-    <ClInclude Include="version_tree.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="delta.c" />
-    <ClCompile Include="error.c" />
     <ClCompile Include="main.c" />
-    <ClCompile Include="my_string.c" />
-    <ClCompile Include="parse.c" />
-    <ClCompile Include="utils.c" />
-    <ClCompile Include="vcs.c" />
-    <ClCompile Include="version_tree.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -15,51 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="delta.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="error.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="my_string.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="parse.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="utils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vcs.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="version_tree.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="delta.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="my_string.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="parse.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="utils.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vcs.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="version_tree.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="error.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
