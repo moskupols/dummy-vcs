@@ -1245,6 +1245,8 @@ int main()
             scanf("%300s", fname);
             handle_result(vcs_save(&vcs, fname));
         } else {
+            while (getchar() != '\n' && !feof(stdin) && !ferror(stdin))
+                ;
             printf("Unknown command %s\n", command_buf);
         }
     }
