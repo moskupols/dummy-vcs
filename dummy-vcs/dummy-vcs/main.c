@@ -23,7 +23,7 @@ typedef enum //ошибки
     // Ошибка в сохранённых изменениях
     ERR_INVALID_DELTA,
 
-    // Операция невозможно из-за неподходящего номера версии
+    // Операция невозможна из-за неподходящего номера версии
     ERR_INVALID_VERSION,
 
     // Не удалось открыть файл
@@ -726,7 +726,7 @@ return_t apply_upwards(char** text, struct version_tree* vt, int descendant, int
     return ret == SUCCESS ? apply_upwards(text, vt, vt_get_parent(vt, descendant), ancestor) : ret;
 }
 
-// Применить к дереву изменения на пути вниз от ancestor к descendant
+// Применить к тексту изменения на пути вниз от ancestor к descendant
 return_t apply_downwards(char** text, struct version_tree* vt, int ancestor, int descendant)
 {
     assert(vt_version_is_known(vt, ancestor));
